@@ -1,0 +1,8 @@
+# Books
+
+
+## Dependencies
+
+* Gtk+ 3.0
+* GtkWebKit
+* libarchive
