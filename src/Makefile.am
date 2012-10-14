@@ -9,7 +9,11 @@ BUILT_SOURCES = 			\
 books_SOURCES = 			\
 		main.c 				\
 		books-epub.c 		\
+		books-epub.h 		\
 		books-window.c 		\
+		books-window.h 		\
+		books.gresource.xml \
+		ui/books.ui 		\
 		$(BUILT_SOURCES)
 
 books_LDADD = $(BOOKS_LIBS)
@@ -19,5 +23,7 @@ RESOURCES = $(shell $(GLIB_COMPILE_RESOURCES) --generate-dependencies books.gres
 books-resources.c: books.gresource.xml $(RESOURCES)
 	$(GLIB_COMPILE_RESOURCES) --target=$@ --generate --c-name books books.gresource.xml
 
-EXTRA_DIST =
+EXTRA_DIST = 				\
 		books.gresource.xml
+
+CLEANFILES = *~
