@@ -208,6 +208,7 @@ books_main_window_init (BooksMainWindow *window)
 {
     BooksMainWindowPrivate *priv;
     GtkToolItem *add_ebook_item;
+    GtkContainer *scrolled;
     GtkCellRenderer *renderer;
     GtkTreeSelection *selection;
     gchar *db_path;
@@ -221,6 +222,8 @@ books_main_window_init (BooksMainWindow *window)
     /* Add toolbar */
     priv->toolbar = gtk_toolbar_new ();
     gtk_container_add (GTK_CONTAINER (priv->main_box), priv->toolbar);
+    gtk_style_context_add_class (gtk_widget_get_style_context (priv->toolbar),
+                                 GTK_STYLE_CLASS_PRIMARY_TOOLBAR);
 
     add_ebook_item = gtk_tool_button_new_from_stock (GTK_STOCK_ADD);
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), add_ebook_item, -1);
@@ -236,8 +239,11 @@ books_main_window_init (BooksMainWindow *window)
                                       G_TYPE_STRING);
 
     /* ... and its view */
+    scrolled = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
+    gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (scrolled));
+
     priv->books_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->books)));
-    gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (priv->books_view));
+    gtk_container_add (GTK_CONTAINER (scrolled), GTK_WIDGET (priv->books_view));
     gtk_widget_set_vexpand (GTK_WIDGET (priv->books_view), TRUE);
 
     renderer = gtk_cell_renderer_text_new ();
