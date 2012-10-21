@@ -37,7 +37,7 @@ BooksEpub  *books_epub_new          (void);
 gboolean    books_epub_open         (BooksEpub      *epub,
                                      const gchar   *filename,
                                      GError       **error);
-gchar      *books_epub_get_content  (BooksEpub      *epub);
+gchar      *books_epub_get_uri      (BooksEpub      *epub);
 void        books_epub_next         (BooksEpub      *epub);
 void        books_epub_previous     (BooksEpub      *epub);
 gboolean    books_epub_is_first     (BooksEpub      *epub);

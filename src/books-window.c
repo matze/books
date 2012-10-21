@@ -26,8 +26,8 @@ struct _BooksWindowPrivate {
     BooksEpub   *epub;
 };
 
-static void load_web_view_content (BooksWindowPrivate *priv);
-static void update_navigation_buttons (BooksWindowPrivate *priv);
+static void load_web_view_content       (BooksWindowPrivate *priv);
+static void update_navigation_buttons   (BooksWindowPrivate *priv);
 
 
 GtkWidget *
@@ -39,11 +39,22 @@ books_window_new (void)
 static void
 load_web_view_content (BooksWindowPrivate *priv)
 {
-    gchar *content;
+    gchar *uri;
 
-    content = books_epub_get_content (priv->epub);
-    webkit_web_view_load_string (WEBKIT_WEB_VIEW (priv->html_view),
-                                 content, NULL, NULL, "/");
+    uri = books_epub_get_uri (priv->epub);
+
+    if (uri != NULL) {
+        WebKitWebSettings *settings;
+
+        webkit_web_view_load_uri (WEBKIT_WEB_VIEW (priv->html_view), uri);
+
+        settings = webkit_web_view_get_settings (WEBKIT_WEB_VIEW (priv->html_view));
+        g_object_set (G_OBJECT (settings),
+                      "default-font-family", "serif",
+                      NULL);
+    }
+
+    g_free (uri);
     update_navigation_buttons (priv);
 }
 
@@ -83,7 +94,7 @@ on_add_ebook_button_clicked (GtkToolButton *button,
         priv->epub = books_epub_new ();
 
         if (!books_epub_open (priv->epub, filename, &error)) {
-            g_printerr ("%s\n", error->message);
+            g_printerr ("EPUB open failed: %s\n", error->message);
             g_object_unref (priv->epub);
             priv->epub = NULL;
         }
