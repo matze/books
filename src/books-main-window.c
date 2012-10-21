@@ -26,9 +26,11 @@ enum {
 struct _BooksMainWindowPrivate {
     GtkWidget       *main_box;
     GtkWidget       *toolbar;
+    GtkEntry        *filter_entry;
 
     GtkTreeView     *books_view;
     GtkListStore    *books;
+    GtkTreeModel    *filtered_books;
 
     sqlite3         *db;
 };
@@ -98,11 +100,15 @@ on_row_activated (GtkTreeView *view,
                   BooksMainWindow *window)
 {
     GtkTreeIter iter;
+    GtkTreePath *child_path;
     BooksMainWindowPrivate *priv;
 
     priv = window->priv;
 
-    if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->books), &iter, path)) {
+    child_path = gtk_tree_model_filter_convert_path_to_child_path (GTK_TREE_MODEL_FILTER (priv->filtered_books),
+                                                                   path);
+
+    if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->books), &iter, child_path)) {
         BooksEpub *epub;
         BooksWindow *view;
         gchar *path;
@@ -186,7 +192,10 @@ books_main_window_class_init (BooksMainWindowClass *klass)
 }
 
 static int
-insert_row_into_model (gpointer user_data, gint argc, gchar **argv, gchar **column)
+insert_row_into_model (gpointer user_data,
+                       gint argc,
+                       gchar **argv,
+                       gchar **column)
 {
     BooksMainWindowPrivate *priv;
     GtkTreeIter iter;
@@ -204,10 +213,59 @@ insert_row_into_model (gpointer user_data, gint argc, gchar **argv, gchar **colu
 }
 
 static void
+on_entry_insert (GtkEditable *editable,
+                 BooksMainWindowPrivate *priv)
+{
+    gtk_tree_model_filter_refilter (GTK_TREE_MODEL_FILTER (priv->filtered_books));
+}
+
+static gboolean
+row_visible (GtkTreeModel *model,
+             GtkTreeIter *iter,
+             BooksMainWindowPrivate *priv)
+{
+    gboolean visible;
+    gchar *lowered_author;
+    gchar *lowered_title;
+    gchar *lowered_entry;
+    const gchar *author;
+    const gchar *title;
+    const gchar *entry;
+
+    entry = gtk_entry_get_text (priv->filter_entry);
+
+    if (entry == NULL)
+        return TRUE;
+
+    gtk_tree_model_get (model, iter,
+                        COLUMN_AUTHOR, &author,
+                        COLUMN_TITLE, &title,
+                        -1);
+
+    if (author == NULL || title == NULL)
+        return TRUE;
+
+    lowered_entry = g_utf8_strdown (entry, -1);
+    lowered_author = g_utf8_strdown (author, -1);
+    lowered_title = g_utf8_strdown (title, -1);
+
+    visible = strstr (lowered_author, lowered_entry) != NULL ||
+              strstr (lowered_title, lowered_entry) != NULL;
+
+    g_free (lowered_author);
+    g_free (lowered_title);
+    g_free (lowered_entry);
+
+    return visible;
+}
+
+static void
 books_main_window_init (BooksMainWindow *window)
 {
     BooksMainWindowPrivate *priv;
     GtkToolItem *add_ebook_item;
+    GtkToolItem *separator_item;
+    GtkToolItem *filter_item;
     GtkContainer *scrolled;
     GtkCellRenderer *renderer;
     GtkTreeSelection *selection;
@@ -229,8 +287,21 @@ books_main_window_init (BooksMainWindow *window)
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), add_ebook_item, -1);
     gtk_tool_item_set_tooltip_text (add_ebook_item, _("Add EPUB"));
 
+    separator_item = gtk_separator_tool_item_new ();
+    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), separator_item, -1);
+    gtk_separator_tool_item_set_draw (GTK_SEPARATOR_TOOL_ITEM (separator_item), FALSE);
+    gtk_widget_set_hexpand (GTK_WIDGET (separator_item), TRUE);
+
+    filter_item = gtk_tool_item_new ();
+    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), filter_item, -1);
+    priv->filter_entry = GTK_ENTRY (gtk_entry_new ());
+    gtk_container_add (GTK_CONTAINER (filter_item), GTK_WIDGET (priv->filter_entry));
+
     g_signal_connect (add_ebook_item, "clicked",
                       G_CALLBACK (on_add_ebook_button_clicked), window);
+
+    g_signal_connect (priv->filter_entry, "changed",
+                      G_CALLBACK (on_entry_insert), priv);
 
     /* Create model */
     priv->books = gtk_list_store_new (N_COLUMNS,
@@ -238,11 +309,16 @@ books_main_window_init (BooksMainWindow *window)
                                       G_TYPE_STRING,
                                       G_TYPE_STRING);
 
+    priv->filtered_books = gtk_tree_model_filter_new (GTK_TREE_MODEL (priv->books), NULL);
+    gtk_tree_model_filter_set_visible_func (GTK_TREE_MODEL_FILTER (priv->filtered_books),
+                                            (GtkTreeModelFilterVisibleFunc) row_visible,
+                                            priv, NULL);
+
     /* ... and its view */
     scrolled = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
     gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (scrolled));
 
-    priv->books_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->books)));
+    priv->books_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->filtered_books)));
     gtk_container_add (GTK_CONTAINER (scrolled), GTK_WIDGET (priv->books_view));
     gtk_widget_set_vexpand (GTK_WIDGET (priv->books_view), TRUE);
 
