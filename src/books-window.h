@@ -3,6 +3,8 @@
 
 #include <gtk/gtk.h>
 
+#include "books-epub.h"
+
 G_BEGIN_DECLS
 
 #define BOOKS_TYPE_WINDOW             (books_window_get_type())
@@ -28,6 +30,8 @@ struct _BooksWindowClass {
 };
 
 GtkWidget * books_window_new          (void);
+void        books_window_set_epub     (BooksWindow *window,
+                                       BooksEpub *epub);
 GType       books_window_get_type     (void);
 
 G_END_DECLS

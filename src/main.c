@@ -1,7 +1,6 @@
 #include <gtk/gtk.h>
 
-#include "books-window.h"
-#include "books-epub.h"
+#include "books-main-window.h"
 
 
 int
@@ -13,7 +12,7 @@ main (int argc,
 
     gtk_init (&argc, &argv);
 
-    window = books_window_new ();
+    window = books_main_window_new ();
     gtk_widget_set_size_request (window, 800, 600);
     gtk_container_set_border_width (GTK_CONTAINER (window), 10);
 

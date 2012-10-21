@@ -22,9 +22,12 @@ books_epub_error_quark (void)
 }
 
 struct _BooksEpubPrivate {
-    GList *documents;
-    GList *current;
-    gchar *path;
+    GList   *documents;
+    GList   *current;
+    gchar   *path;
+    gchar   *opf_path;
+    xmlDoc  *opf_tree;
+    xmlXPathContext *opf_xpath_context;
 };
 
 
@@ -42,6 +45,7 @@ books_epub_open (BooksEpub *epub,
     BooksEpubPrivate *priv;
     gint result;
     gchar *basename;
+    gchar *opf_data;
     GError *tmp_error = NULL;
 
     g_return_if_fail (BOOKS_IS_EPUB (epub) && filename != NULL);
@@ -68,6 +72,14 @@ books_epub_open (BooksEpub *epub,
         g_propagate_error (error, tmp_error);
         return FALSE;
     }
+
+    priv->opf_path = get_opf_path (priv);
+    opf_data = get_content (priv, priv->opf_path);
+    priv->opf_tree = xmlParseDoc (opf_data);
+    g_free (opf_data);
+    priv->opf_xpath_context = xmlXPathNewContext (priv->opf_tree);
+    xmlXPathRegisterNs (priv->opf_xpath_context, "dc", "http://purl.org/dc/elements/1.1/");
+    xmlXPathRegisterNs (priv->opf_xpath_context, "pkg", "http://www.idpf.org/2007/opf");
 
     populate_document_spine (priv);
     return TRUE;
@@ -129,6 +141,30 @@ books_epub_is_last (BooksEpub *epub)
 {
     g_return_if_fail (BOOKS_IS_EPUB (epub));
     return epub->priv->current == g_list_last (epub->priv->documents);
+}
+
+const gchar *
+books_epub_get_meta (BooksEpub *epub,
+                     gchar *key)
+{
+    BooksEpubPrivate *priv;
+    xmlXPathObject *object;
+    gchar *expression;
+    const gchar *value = NULL;
+
+    g_return_if_fail (BOOKS_IS_EPUB (epub));
+
+    priv = epub->priv;
+    expression = g_strdup_printf ("//pkg:package/pkg:metadata/dc:%s", key);
+    object = xmlXPathEvalExpression (expression, priv->opf_xpath_context);
+
+    if (!xmlXPathNodeSetIsEmpty (object->nodesetval)) {
+        value = xmlNodeListGetString (priv->opf_tree,
+                                      object->nodesetval->nodeTab[0]->xmlChildrenNode, 1);
+    }
+
+    xmlXPathFreeObject (object);
+    return value;
 }
 
 static gint
@@ -326,11 +362,7 @@ get_document_item (xmlXPathContext *context, gchar *item_id)
 static void
 populate_document_spine (BooksEpubPrivate *priv)
 {
-    gchar *opf_data;
-    gchar *opf_path;
     gchar *opf_prefix;
-    xmlDoc *tree;
-    xmlXPathContext *context;
     xmlXPathObject *object;
 
     if (priv->documents != NULL) {
@@ -338,14 +370,9 @@ populate_document_spine (BooksEpubPrivate *priv)
         priv->documents = NULL;
     }
 
-    opf_path = get_opf_path (priv);
-    opf_prefix = g_path_get_dirname (opf_path);
-    opf_data = get_content (priv, opf_path);
-    tree = xmlParseDoc (opf_data);
-    context = xmlXPathNewContext (tree);
-
-    xmlXPathRegisterNs (context, "pkg", "http://www.idpf.org/2007/opf");
-    object = xmlXPathEvalExpression ("//pkg:package/pkg:spine/pkg:itemref", context);
+    opf_prefix = g_path_get_dirname (priv->opf_path);
+    object = xmlXPathEvalExpression ("//pkg:package/pkg:spine/pkg:itemref",
+                                     priv->opf_xpath_context);
 
     if (object->nodesetval != NULL) {
         guint i;
@@ -357,7 +384,7 @@ populate_document_spine (BooksEpubPrivate *priv)
 
             node = object->nodesetval->nodeTab[i];
             item_id = xmlGetProp (node, "idref");
-            item = get_document_item (context, item_id);
+            item = get_document_item (priv->opf_xpath_context, item_id);
 
             if (item != NULL) {
                 gchar *full_path;
@@ -370,10 +397,6 @@ populate_document_spine (BooksEpubPrivate *priv)
     priv->current = g_list_first (priv->documents);
 
     xmlXPathFreeObject (object);
-    xmlXPathFreeContext (context);
-    xmlFreeDoc (tree);
-    xmlCleanupParser ();
-    g_free (opf_path);
     g_free (opf_prefix);
 }
 
@@ -397,6 +420,17 @@ books_epub_finalize (GObject *object)
 
     if (priv->path != NULL)
         g_free (priv->path);
+
+    if (priv->opf_xpath_context != NULL) {
+        xmlXPathFreeContext (priv->opf_xpath_context);
+        priv->opf_xpath_context = NULL;
+    }
+
+    if (priv->opf_tree != NULL) {
+        xmlFreeDoc (priv->opf_tree);
+        xmlCleanupParser ();
+        priv->opf_tree = NULL;
+    }
 
     G_OBJECT_CLASS (books_epub_parent_class)->finalize (object);
 }
@@ -445,5 +479,7 @@ static void books_epub_init(BooksEpub *self)
     self->priv = priv = BOOKS_EPUB_GET_PRIVATE (self);
     priv->documents = NULL;
     priv->path = NULL;
+    priv->opf_tree = NULL;
+    priv->opf_xpath_context = NULL;
 }
 

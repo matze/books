@@ -36,6 +36,16 @@ books_window_new (void)
     return GTK_WIDGET (g_object_new (BOOKS_TYPE_WINDOW, NULL));
 }
 
+void
+books_window_set_epub (BooksWindow *window,
+                       BooksEpub *epub)
+{
+    g_return_if_fail (BOOKS_IS_WINDOW (window));
+
+    window->priv->epub = epub;
+    load_web_view_content (window->priv);
+}
+
 static void
 load_web_view_content (BooksWindowPrivate *priv)
 {
@@ -66,44 +76,6 @@ update_navigation_buttons (BooksWindowPrivate *priv)
 
     gtk_widget_set_sensitive (priv->go_forward_item,
                               !books_epub_is_last (priv->epub));
-}
-
-static void
-on_add_ebook_button_clicked (GtkToolButton *button,
-                             BooksWindow *parent)
-{
-    GtkWidget *file_chooser;
-
-    file_chooser = gtk_file_chooser_dialog_new ("Open EPUB", GTK_WINDOW (parent),
-                                                GTK_FILE_CHOOSER_ACTION_OPEN,
-                                                GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                                NULL);
-
-    if (gtk_dialog_run (GTK_DIALOG (file_chooser)) == GTK_RESPONSE_ACCEPT) {
-        BooksWindowPrivate *priv;
-        gchar *filename;
-        GError *error = NULL;
-
-        priv = parent->priv;
-        filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (file_chooser));
-
-        if (priv->epub != NULL)
-            g_object_unref (priv->epub);
-
-        priv->epub = books_epub_new ();
-
-        if (!books_epub_open (priv->epub, filename, &error)) {
-            g_printerr ("EPUB open failed: %s\n", error->message);
-            g_object_unref (priv->epub);
-            priv->epub = NULL;
-        }
-        else {
-            load_web_view_content (priv);
-        }
-    }
-
-    gtk_widget_destroy (file_chooser);
 }
 
 static void
@@ -195,7 +167,6 @@ static void
 books_window_init (BooksWindow *window)
 {
     BooksWindowPrivate *priv;
-    GtkToolItem *add_ebook_item;
 
     window->priv = priv = BOOKS_WINDOW_GET_PRIVATE (window);
 
@@ -206,9 +177,6 @@ books_window_init (BooksWindow *window)
     priv->toolbar = gtk_toolbar_new ();
     gtk_container_add (GTK_CONTAINER (priv->main_box), priv->toolbar);
 
-    add_ebook_item = gtk_tool_button_new_from_stock (GTK_STOCK_ADD);
-    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), add_ebook_item, -1);
-
     priv->go_back_item = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_BACK));
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), GTK_TOOL_ITEM (priv->go_back_item), -1);
     gtk_widget_set_sensitive (priv->go_back_item, FALSE);
@@ -216,9 +184,6 @@ books_window_init (BooksWindow *window)
     priv->go_forward_item = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_FORWARD));
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), GTK_TOOL_ITEM (priv->go_forward_item), -1);
     gtk_widget_set_sensitive (priv->go_forward_item, FALSE);
-
-    g_signal_connect (add_ebook_item, "clicked",
-                      G_CALLBACK (on_add_ebook_button_clicked), window);
 
     g_signal_connect (priv->go_back_item, "clicked",
                       G_CALLBACK (on_go_back_clicked), window);

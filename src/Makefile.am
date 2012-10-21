@@ -12,6 +12,8 @@ books_SOURCES = 			\
 		books-epub.h 		\
 		books-window.c 		\
 		books-window.h 		\
+		books-main-window.c \
+		books-main-window.h \
 		books.gresource.xml \
 		ui/books.ui 		\
 		$(BUILT_SOURCES)
