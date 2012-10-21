@@ -15,3 +15,4 @@ Configure, compile and install _Books_ with
 * Gtk+ 3.0
 * GtkWebKit
 * libarchive
+* sqlite3

@@ -22,7 +22,8 @@ PKG_CHECK_MODULES([BOOKS],
             [gtk+-3.0
              webkitgtk-3.0
              libarchive
-             libxml-2.0])
+             libxml-2.0
+             sqlite3 >= 3.3])
 
 AC_PREFIX_DEFAULT("/usr")
 

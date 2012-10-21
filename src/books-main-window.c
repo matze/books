@@ -2,7 +2,8 @@
 #include "config.h"
 #endif
 
-#include <webkit/webkit.h>
+#include <string.h>
+#include <sqlite3.h>
 
 #include "books-main-window.h"
 #include "books-window.h"
@@ -26,6 +27,8 @@ struct _BooksMainWindowPrivate {
 
     GtkTreeView     *books_view;
     GtkListStore    *books;
+
+    sqlite3         *db;
 };
 
 GtkWidget *
@@ -51,6 +54,11 @@ on_add_ebook_button_clicked (GtkToolButton *button,
         BooksEpub *epub;
         GtkTreeIter iter;
         gchar *filename;
+        gchar *sql_error;
+        const gchar *author;
+        const gchar *title;
+        const gchar *insert_sql = "INSERT INTO books (author, title, path) VALUES (?, ?, ?)";
+        sqlite3_stmt *insert_stmt = NULL;
         GError *error = NULL;
 
         priv = parent->priv;
@@ -58,13 +66,22 @@ on_add_ebook_button_clicked (GtkToolButton *button,
 
         epub = books_epub_new ();
         books_epub_open (epub, filename, &error);
+        author = books_epub_get_meta (epub, "creator");
+        title = books_epub_get_meta (epub, "title");
 
         gtk_list_store_append (priv->books, &iter);
         gtk_list_store_set (priv->books, &iter,
-                            COLUMN_AUTHOR, books_epub_get_meta (epub, "creator"),
-                            COLUMN_TITLE, books_epub_get_meta (epub, "title"),
+                            COLUMN_AUTHOR, author,
+                            COLUMN_TITLE, title,
                             COLUMN_PATH, filename,
                             -1);
+
+        sqlite3_prepare_v2 (priv->db, insert_sql, -1, &insert_stmt, NULL);
+        sqlite3_bind_text (insert_stmt, 1, author, strlen (author), NULL);
+        sqlite3_bind_text (insert_stmt, 2, title, strlen (title), NULL);
+        sqlite3_bind_text (insert_stmt, 3, filename, strlen (filename), NULL);
+        sqlite3_step (insert_stmt);
+        sqlite3_finalize (insert_stmt);
 
         g_object_unref (epub);
     }
@@ -118,6 +135,11 @@ books_main_window_dispose (GObject *object)
 static void
 books_main_window_finalize (GObject *object)
 {
+    BooksMainWindowPrivate *priv;
+
+    priv = BOOKS_MAIN_WINDOW_GET_PRIVATE (object);
+    sqlite3_close (priv->db);
+
     G_OBJECT_CLASS (books_main_window_parent_class)->finalize (object);
 }
 
@@ -161,6 +183,24 @@ books_main_window_class_init (BooksMainWindowClass *klass)
     g_type_class_add_private (klass, sizeof(BooksMainWindowPrivate));
 }
 
+static int
+insert_row_into_model (gpointer user_data, gint argc, gchar **argv, gchar **column)
+{
+    BooksMainWindowPrivate *priv;
+    GtkTreeIter iter;
+
+    g_assert (argc == 3);
+    priv = (BooksMainWindowPrivate *) user_data;
+
+    gtk_list_store_append (priv->books, &iter);
+    gtk_list_store_set (priv->books, &iter,
+                        COLUMN_AUTHOR, argv[0],
+                        COLUMN_TITLE, argv[1],
+                        COLUMN_PATH, argv[2],
+                        -1);
+    return 0;
+}
+
 static void
 books_main_window_init (BooksMainWindow *window)
 {
@@ -168,6 +208,8 @@ books_main_window_init (BooksMainWindow *window)
     GtkToolItem *add_ebook_item;
     GtkCellRenderer *renderer;
     GtkTreeSelection *selection;
+    gchar *db_path;
+    gchar *db_error;
 
     window->priv = priv = BOOKS_MAIN_WINDOW_GET_PRIVATE (window);
 
@@ -209,5 +251,22 @@ books_main_window_init (BooksMainWindow *window)
 
     g_signal_connect (priv->books_view, "row-activated",
                       G_CALLBACK (on_row_activated), window);
+
+    /* Create data base */
+    db_path = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir(), "books", "meta.db", NULL);
+    sqlite3_open (db_path, &priv->db);
+    g_free (db_path);
+
+    if (sqlite3_exec (priv->db, "CREATE TABLE IF NOT EXISTS books (author TEXT, title TEXT, path TEXT)",
+                      NULL, NULL, &db_error)) {
+        g_warning ("Could not create table: %s\n", db_error);
+        sqlite3_free (db_error);
+    }
+
+    if (sqlite3_exec (priv->db, "SELECT author, title, path FROM books",
+                      insert_row_into_model, priv, &db_error)) {
+        g_warning ("Could not select data: %s\n", db_error);
+        sqlite3_free (db_error);
+    }
 }
 
