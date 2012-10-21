@@ -1,0 +1,44 @@
+# German translations for books package.
+# Copyright (C) 2012 Matthias Vogelgesang
+# This file is distributed under the same license as the books package.
+# matthias <matthias.vogelgesang@gmail.com>, 2012.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: books 0.1\n"
+"Report-Msgid-Bugs-To: http://github.com/matze/books/issues\n"
+"POT-Creation-Date: 2012-10-21 21:07+0200\n"
+"PO-Revision-Date: 2012-10-21 20:56+0200\n"
+"Last-Translator: matthias <matthias.vogelgesang@gmail.com>\n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: ../src/books-main-window.c:48
+msgid "Open EPUB"
+msgstr "EPUB öffnen"
+
+#: ../src/books-main-window.c:227
+msgid "Add EPUB"
+msgstr "EPUB hinzufügen"
+
+#: ../src/books-main-window.c:244
+msgid "Author"
+msgstr "Autor"
+
+#: ../src/books-main-window.c:248
+msgid "Title"
+msgstr "Titel"
+
+#: ../src/books-main-window.c:265
+#, c-format
+msgid "Could not create table: %s\n"
+msgstr "Konnte Tabelle nicht anlegen: %s\n"
+
+#: ../src/books-main-window.c:271
+#, c-format
+msgid "Could not select data: %s\n"
+msgstr "Konnte Daten nicht auswählen: %s\n"

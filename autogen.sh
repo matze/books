@@ -1,4 +1,4 @@
 #!/bin/sh
-set -e
-autoreconf -i --force
-rm -rf autom4te.cache
+autoreconf --force --install
+intltoolize --force --copy --automake || return 1
+./configure "$@"

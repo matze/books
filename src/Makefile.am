@@ -1,5 +1,8 @@
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
-AM_CPPFLAGS = $(BOOKS_CFLAGS)
+
+AM_CPPFLAGS = 						\
+		$(BOOKS_CFLAGS) 			\
+		-DDATADIR=\""$(datadir)"\"
 
 bin_PROGRAMS = books
 

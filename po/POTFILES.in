@@ -1,0 +1,5 @@
+# List of source files which contain translatable strings.
+src/main.c
+src/books-epub.c
+src/books-main-window.c
+src/books-window.c

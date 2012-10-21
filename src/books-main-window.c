@@ -1,9 +1,11 @@
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include <string.h>
 #include <sqlite3.h>
+#include <glib.h>
+#include <glib/gi18n.h>
 
 #include "books-main-window.h"
 #include "books-window.h"
@@ -43,7 +45,7 @@ on_add_ebook_button_clicked (GtkToolButton *button,
 {
     GtkWidget *file_chooser;
 
-    file_chooser = gtk_file_chooser_dialog_new ("Open EPUB", GTK_WINDOW (parent),
+    file_chooser = gtk_file_chooser_dialog_new (_("Open EPUB"), GTK_WINDOW (parent),
                                                 GTK_FILE_CHOOSER_ACTION_OPEN,
                                                 GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
                                                 GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
@@ -222,6 +224,7 @@ books_main_window_init (BooksMainWindow *window)
 
     add_ebook_item = gtk_tool_button_new_from_stock (GTK_STOCK_ADD);
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), add_ebook_item, -1);
+    gtk_tool_item_set_tooltip_text (add_ebook_item, _("Add EPUB"));
 
     g_signal_connect (add_ebook_item, "clicked",
                       G_CALLBACK (on_add_ebook_button_clicked), window);
@@ -238,11 +241,11 @@ books_main_window_init (BooksMainWindow *window)
     gtk_widget_set_vexpand (GTK_WIDGET (priv->books_view), TRUE);
 
     renderer = gtk_cell_renderer_text_new ();
-    gtk_tree_view_insert_column_with_attributes (priv->books_view, -1, "Author", renderer,
+    gtk_tree_view_insert_column_with_attributes (priv->books_view, -1, _("Author"), renderer,
                                                  "text", COLUMN_AUTHOR,
                                                  NULL);
 
-    gtk_tree_view_insert_column_with_attributes (priv->books_view, -1, "Title", renderer,
+    gtk_tree_view_insert_column_with_attributes (priv->books_view, -1, _("Title"), renderer,
                                                  "text", COLUMN_TITLE,
                                                  NULL);
 
@@ -259,13 +262,13 @@ books_main_window_init (BooksMainWindow *window)
 
     if (sqlite3_exec (priv->db, "CREATE TABLE IF NOT EXISTS books (author TEXT, title TEXT, path TEXT)",
                       NULL, NULL, &db_error)) {
-        g_warning ("Could not create table: %s\n", db_error);
+        g_warning (_("Could not create table: %s\n"), db_error);
         sqlite3_free (db_error);
     }
 
     if (sqlite3_exec (priv->db, "SELECT author, title, path FROM books",
                       insert_row_into_model, priv, &db_error)) {
-        g_warning ("Could not select data: %s\n", db_error);
+        g_warning (_("Could not select data: %s\n"), db_error);
         sqlite3_free (db_error);
     }
 }
