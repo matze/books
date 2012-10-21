@@ -293,7 +293,7 @@ get_content (BooksEpubPrivate *priv,
         fseek (fp, 0, SEEK_END);
         size = ftell (fp);
         fseek (fp, 0, SEEK_SET);
-        content = g_malloc0 (size);
+        content = g_malloc0 (size + 1);
         read = fread (content, 1, size, fp);
         g_assert (read == size);
         fclose (fp);
