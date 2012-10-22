@@ -31,6 +31,7 @@ struct _BooksMainWindowPrivate {
     GtkTreeView     *books_view;
     GtkListStore    *books;
     GtkTreeModel    *filtered_books;
+    GtkTreeModel    *sorted_books;
 
     sqlite3         *db;
 };
@@ -100,13 +101,17 @@ on_row_activated (GtkTreeView *view,
                   BooksMainWindow *window)
 {
     GtkTreeIter iter;
+    GtkTreePath *filtered_path;
     GtkTreePath *child_path;
     BooksMainWindowPrivate *priv;
 
     priv = window->priv;
 
+    filtered_path = gtk_tree_model_sort_convert_path_to_child_path (GTK_TREE_MODEL_SORT (priv->sorted_books),
+                                                                    path);
+
     child_path = gtk_tree_model_filter_convert_path_to_child_path (GTK_TREE_MODEL_FILTER (priv->filtered_books),
-                                                                   path);
+                                                                   filtered_path);
 
     if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->books), &iter, child_path)) {
         BooksEpub *epub;
@@ -228,8 +233,8 @@ row_visible (GtkTreeModel *model,
     gchar *lowered_author;
     gchar *lowered_title;
     gchar *lowered_entry;
-    const gchar *author;
-    const gchar *title;
+    gchar *author;
+    gchar *title;
     const gchar *entry;
 
     entry = gtk_entry_get_text (priv->filter_entry);
@@ -255,6 +260,8 @@ row_visible (GtkTreeModel *model,
     g_free (lowered_author);
     g_free (lowered_title);
     g_free (lowered_entry);
+    g_free (author);
+    g_free (title);
 
     return visible;
 }
@@ -263,12 +270,14 @@ static void
 books_main_window_init (BooksMainWindow *window)
 {
     BooksMainWindowPrivate *priv;
-    GtkToolItem *add_ebook_item;
-    GtkToolItem *separator_item;
-    GtkToolItem *filter_item;
-    GtkContainer *scrolled;
-    GtkCellRenderer *renderer;
-    GtkTreeSelection *selection;
+    GtkToolItem         *add_ebook_item;
+    GtkToolItem         *separator_item;
+    GtkToolItem         *filter_item;
+    GtkContainer        *scrolled;
+    GtkTreeViewColumn   *author_column;
+    GtkTreeViewColumn   *title_column;
+    GtkCellRenderer     *renderer;
+    GtkTreeSelection    *selection;
     gchar *db_path;
     gchar *db_error;
 
@@ -310,26 +319,36 @@ books_main_window_init (BooksMainWindow *window)
                                       G_TYPE_STRING);
 
     priv->filtered_books = gtk_tree_model_filter_new (GTK_TREE_MODEL (priv->books), NULL);
+
     gtk_tree_model_filter_set_visible_func (GTK_TREE_MODEL_FILTER (priv->filtered_books),
                                             (GtkTreeModelFilterVisibleFunc) row_visible,
                                             priv, NULL);
+
+    priv->sorted_books = gtk_tree_model_sort_new_with_model (priv->filtered_books);
 
     /* ... and its view */
     scrolled = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
     gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (scrolled));
 
-    priv->books_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->filtered_books)));
+    priv->books_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->sorted_books)));
     gtk_container_add (GTK_CONTAINER (scrolled), GTK_WIDGET (priv->books_view));
     gtk_widget_set_vexpand (GTK_WIDGET (priv->books_view), TRUE);
 
     renderer = gtk_cell_renderer_text_new ();
-    gtk_tree_view_insert_column_with_attributes (priv->books_view, -1, _("Author"), renderer,
-                                                 "text", COLUMN_AUTHOR,
-                                                 NULL);
 
-    gtk_tree_view_insert_column_with_attributes (priv->books_view, -1, _("Title"), renderer,
-                                                 "text", COLUMN_TITLE,
-                                                 NULL);
+    author_column = gtk_tree_view_column_new_with_attributes (_("Author"), renderer,
+            "text", COLUMN_AUTHOR,
+            NULL);
+
+    gtk_tree_view_column_set_sort_column_id (author_column, COLUMN_AUTHOR);
+    gtk_tree_view_append_column (priv->books_view, author_column);
+
+    title_column = gtk_tree_view_column_new_with_attributes (_("Title"), renderer,
+            "text", COLUMN_TITLE,
+            NULL);
+
+    gtk_tree_view_column_set_sort_column_id (title_column, COLUMN_TITLE);
+    gtk_tree_view_append_column (priv->books_view, title_column);
 
     selection = gtk_tree_view_get_selection (priv->books_view);
     gtk_tree_selection_set_mode (selection, GTK_SELECTION_SINGLE);
