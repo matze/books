@@ -290,7 +290,7 @@ books_main_window_init (BooksMainWindow *window)
     separator_item = gtk_separator_tool_item_new ();
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), separator_item, -1);
     gtk_separator_tool_item_set_draw (GTK_SEPARATOR_TOOL_ITEM (separator_item), FALSE);
-    gtk_widget_set_hexpand (GTK_WIDGET (separator_item), TRUE);
+    gtk_tool_item_set_expand (GTK_TOOL_ITEM (separator_item), TRUE);
 
     filter_item = gtk_tool_item_new ();
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), filter_item, -1);
