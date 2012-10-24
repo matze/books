@@ -95,6 +95,50 @@ on_add_ebook_button_clicked (GtkToolButton *button,
 }
 
 static void
+on_remove_ebook_button_clicked (GtkToolButton *button,
+                                BooksMainWindowPrivate *priv)
+{
+    GtkTreeSelection *selection;
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    selection = gtk_tree_view_get_selection (priv->books_view);
+
+    if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
+        GtkTreeIter filtered_iter;
+        GtkTreeIter real_iter;
+
+        gchar *path;
+        const gchar *remove_sql = "DELETE FROM books WHERE path=?";
+        sqlite3_stmt *remove_stmt = NULL;
+
+        gtk_tree_model_get (model, &iter, COLUMN_PATH, &path, -1);
+
+        gtk_tree_model_sort_convert_iter_to_child_iter (GTK_TREE_MODEL_SORT (priv->sorted_books),
+                                                        &filtered_iter,
+                                                        &iter);
+
+        gtk_tree_model_filter_convert_iter_to_child_iter (GTK_TREE_MODEL_FILTER (priv->filtered_books),
+                                                          &real_iter,
+                                                          &filtered_iter);
+
+        gtk_list_store_remove (priv->books, &real_iter);
+        gtk_tree_model_filter_refilter (GTK_TREE_MODEL_FILTER (priv->filtered_books));
+
+        /*
+         * TODO: sqlite operations are noticeable. We should execute them
+         * asynchronously.
+         */
+        sqlite3_prepare_v2 (priv->db, remove_sql, -1, &remove_stmt, NULL);
+        sqlite3_bind_text (remove_stmt, 1, path, strlen (path), NULL);
+        sqlite3_step (remove_stmt);
+        sqlite3_finalize (remove_stmt);
+
+        g_free (path);
+    }
+}
+
+static void
 on_row_activated (GtkTreeView *view,
                   GtkTreePath *path,
                   GtkTreeViewColumn *col,
@@ -271,6 +315,7 @@ books_main_window_init (BooksMainWindow *window)
 {
     BooksMainWindowPrivate *priv;
     GtkToolItem         *add_ebook_item;
+    GtkToolItem         *remove_ebook_item;
     GtkToolItem         *separator_item;
     GtkToolItem         *filter_item;
     GtkContainer        *scrolled;
@@ -296,6 +341,10 @@ books_main_window_init (BooksMainWindow *window)
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), add_ebook_item, -1);
     gtk_tool_item_set_tooltip_text (add_ebook_item, _("Add EPUB"));
 
+    remove_ebook_item = gtk_tool_button_new_from_stock (GTK_STOCK_REMOVE);
+    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), remove_ebook_item, -1);
+    gtk_tool_item_set_tooltip_text (remove_ebook_item, _("Remove EPUB"));
+
     separator_item = gtk_separator_tool_item_new ();
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), separator_item, -1);
     gtk_separator_tool_item_set_draw (GTK_SEPARATOR_TOOL_ITEM (separator_item), FALSE);
@@ -308,6 +357,9 @@ books_main_window_init (BooksMainWindow *window)
 
     g_signal_connect (add_ebook_item, "clicked",
                       G_CALLBACK (on_add_ebook_button_clicked), window);
+
+    g_signal_connect (remove_ebook_item, "clicked",
+                      G_CALLBACK (on_remove_ebook_button_clicked), priv);
 
     g_signal_connect (priv->filter_entry, "changed",
                       G_CALLBACK (on_entry_insert), priv);
