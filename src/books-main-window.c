@@ -66,8 +66,7 @@ on_add_ebook_button_clicked (GtkToolButton *button,
 }
 
 static void
-on_remove_ebook_button_clicked (GtkToolButton *button,
-                                BooksMainWindowPrivate *priv)
+remove_currently_selected_book (BooksMainWindowPrivate *priv)
 {
     GtkTreeSelection *selection;
     GtkTreeModel *model;
@@ -80,19 +79,24 @@ on_remove_ebook_button_clicked (GtkToolButton *button,
 }
 
 static void
+on_remove_ebook_button_clicked (GtkToolButton *button,
+                                BooksMainWindowPrivate *priv)
+{
+    remove_currently_selected_book (priv);
+}
+
+static void
 on_row_activated (GtkTreeView *view,
                   GtkTreePath *path,
                   GtkTreeViewColumn *col,
-                  BooksMainWindow *window)
+                  BooksMainWindowPrivate *priv)
 {
     GtkTreeIter iter;
     GtkTreePath *filtered_path;
     GtkTreePath *child_path;
     BooksEpub *epub;
-    BooksMainWindowPrivate *priv;
     GError *error = NULL;
 
-    priv = window->priv;
     epub = books_collection_get_book (priv->collection, path, &error);
 
     if (epub != NULL) {
@@ -103,6 +107,19 @@ on_row_activated (GtkTreeView *view,
         gtk_widget_set_size_request (book_window, 594, 841);
         gtk_widget_show_all (book_window);
     }
+}
+
+static gboolean
+on_books_view_key_press (GtkWidget *widget,
+                         GdkEventKey *event,
+                         BooksMainWindowPrivate *priv)
+{
+    if (event->keyval == GDK_KEY_Delete) {
+        remove_currently_selected_book (priv);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 static void
@@ -214,6 +231,9 @@ books_main_window_init (BooksMainWindow *window)
     gtk_tree_selection_set_mode (selection, GTK_SELECTION_SINGLE);
 
     g_signal_connect (priv->books_view, "row-activated",
-                      G_CALLBACK (on_row_activated), window);
+                      G_CALLBACK (on_row_activated), priv);
+
+    g_signal_connect (priv->books_view, "key-press-event",
+                      G_CALLBACK (on_books_view_key_press), priv);
 }
 
