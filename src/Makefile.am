@@ -11,6 +11,8 @@ BUILT_SOURCES = 			\
 
 books_SOURCES = 			\
 		main.c 				\
+		books-collection.c 	\
+		books-collection.h 	\
 		books-epub.c 		\
 		books-epub.h 		\
 		books-window.c 		\
