@@ -127,16 +127,17 @@ books_collection_get_book (BooksCollection *collection,
 
     if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->store), &iter, real_path)) {
         BooksEpub *epub;
-        gchar *path;
+        gchar *filename;
 
-        gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, BOOKS_COLLECTION_PATH_COLUMN, &path, -1);
+        gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, BOOKS_COLLECTION_PATH_COLUMN, &filename, -1);
         epub = books_epub_new ();
-        g_free (path);
 
-        if (books_epub_open (epub, path, error))
+        if (books_epub_open (epub, filename, error))
             return epub;
         else
             g_object_unref (epub);
+
+        g_free (filename);
     }
 
     return NULL;
