@@ -1,0 +1,3 @@
+language: c
+before_script: "sudo apt-get install libgtk3.0-dev libwebkitgtk-dev libarchive-dev libsqlite3-dev"
+script: "./autogen.sh && make"
