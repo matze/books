@@ -15,36 +15,83 @@ G_DEFINE_TYPE(BooksMainWindow, books_main_window, GTK_TYPE_WINDOW)
 
 #define BOOKS_MAIN_WINDOW_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), BOOKS_TYPE_MAIN_WINDOW, BooksMainWindowPrivate))
 
+static void action_quit (GtkAction *, BooksMainWindow *window);
 static void action_add_book (GtkAction *, BooksMainWindow *window);
 static void action_remove_selected_book (GtkAction *, BooksMainWindow *window);
 
 struct _BooksMainWindowPrivate {
     GtkUIManager    *manager;
     GtkWidget       *main_box;
-    GtkWidget       *toolbar;
+    GtkContainer    *list_scroll;
+    GtkContainer    *icon_scroll;
     GtkActionGroup  *action_group;
     GtkEntry        *filter_entry;
 
+    GtkWidget       *view;
     GtkTreeView     *tree_view;
     GtkIconView     *icon_view;
+
     BooksCollection *collection;
 };
 
 static GtkActionEntry action_entries[] = {
+    { "Books", NULL, N_("Books") },
+    { "Edit",  NULL, N_("Edit") },
+    { "View",  NULL, N_("View") },
+
     { "BookAdd", GTK_STOCK_ADD, N_("Add Book..."), "<control>O",
       N_("Add a book to the collection"),
       G_CALLBACK (action_add_book) },
     { "BookRemove", GTK_STOCK_REMOVE, N_("Remove Book"), "Delete",
       N_("Remove selected book from the collection"),
       G_CALLBACK (action_remove_selected_book) },
+
+    { "BooksQuit", GTK_STOCK_ADD, N_("Quit"), "<control>Q",
+      N_("Quit"),
+      G_CALLBACK (action_quit) },
+};
+
+enum {
+    VIEW_ICONS = 0,
+    VIEW_LIST
+};
+
+static GtkRadioActionEntry view_entries[] = {
+    /* Same terminology as in Nautilus */
+    { "ViewIcon", GTK_STOCK_REMOVE, N_("Symbols"), "<control>1",
+      N_("Show books in a grid with book covers"),
+      VIEW_ICONS },
+    { "ViewList", GTK_STOCK_REMOVE, N_("List"), "<control>2",
+      N_("Show books in a list"),
+      VIEW_LIST },
 };
 
 static gint n_action_entries = G_N_ELEMENTS (action_entries);
+static gint n_view_entries = G_N_ELEMENTS (view_entries);
 
 GtkWidget *
 books_main_window_new (void)
 {
     return GTK_WIDGET (g_object_new (BOOKS_TYPE_MAIN_WINDOW, NULL));
+}
+
+static void
+action_view_changed (GtkRadioAction *action,
+                     GtkRadioAction *current,
+                     BooksMainWindow *window)
+{
+    BooksMainWindowPrivate *priv;
+
+    priv = window->priv;
+
+    if (!g_strcmp0 (gtk_action_get_name (GTK_ACTION (current)), "ViewIcon")) {
+        gtk_widget_show (GTK_WIDGET (priv->icon_scroll));
+        gtk_widget_hide (GTK_WIDGET (priv->list_scroll));
+    }
+    else {
+        gtk_widget_show (GTK_WIDGET (priv->list_scroll));
+        gtk_widget_hide (GTK_WIDGET (priv->icon_scroll));
+    }
 }
 
 static void
@@ -95,6 +142,13 @@ action_remove_selected_book (GtkAction *action,
 
     if (gtk_tree_selection_get_selected (selection, &model, &iter))
         books_collection_remove_book (priv->collection, &iter);
+}
+
+static void
+action_quit (GtkAction *action,
+             BooksMainWindow *window)
+{
+    gtk_main_quit ();
 }
 
 static void
@@ -209,14 +263,16 @@ static void
 books_main_window_init (BooksMainWindow *window)
 {
     BooksMainWindowPrivate *priv;
+    GtkWidget           *toolbar;
+    GtkWidget           *menubar;
     GtkToolItem         *separator_item;
     GtkToolItem         *filter_item;
-    GtkContainer        *scrolled;
     GtkTreeModel        *model;
     GtkTreeViewColumn   *author_column;
     GtkTreeViewColumn   *title_column;
     GtkCellRenderer     *renderer;
     GtkTreeSelection    *selection;
+    GtkContainer        *scroll_box;
     GBytes              *bytes;
     gsize                size;
     const gchar         *ui_data;
@@ -231,6 +287,9 @@ books_main_window_init (BooksMainWindow *window)
     priv->action_group = gtk_action_group_new ("MainActions");
     gtk_action_group_set_translation_domain (priv->action_group, GETTEXT_PACKAGE);
     gtk_action_group_add_actions (priv->action_group, action_entries, n_action_entries, window);
+    gtk_action_group_add_radio_actions (priv->action_group,
+                                        view_entries, n_view_entries, VIEW_ICONS,
+                                        G_CALLBACK (action_view_changed), window);
 
     priv->manager = gtk_ui_manager_new ();
     bytes = g_resources_lookup_data ("/com/github/matze/books/ui/books.xml", 0, &error);
@@ -245,7 +304,7 @@ books_main_window_init (BooksMainWindow *window)
     gtk_ui_manager_add_ui_from_string (priv->manager, ui_data, size, &error);
 
     if (error != NULL) {
-        g_error ("%s\n", error->message);
+        g_warning ("%s\n", error->message);
         g_error_free (error);
     }
 
@@ -253,34 +312,35 @@ books_main_window_init (BooksMainWindow *window)
 
     /* Create widgets */
     priv->main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-    gtk_container_add (GTK_CONTAINER (window), priv->main_box);
+
+    /* Add menu bar */
+    menubar = gtk_ui_manager_get_widget (priv->manager, "/MenuBar");
 
     /* Add toolbar */
-    priv->toolbar = gtk_ui_manager_get_widget (priv->manager, "/ToolBar");
-    gtk_container_add (GTK_CONTAINER (priv->main_box), priv->toolbar);
-    gtk_style_context_add_class (gtk_widget_get_style_context (priv->toolbar),
+    toolbar = gtk_ui_manager_get_widget (priv->manager, "/ToolBar");
+    gtk_style_context_add_class (gtk_widget_get_style_context (toolbar),
                                  GTK_STYLE_CLASS_PRIMARY_TOOLBAR);
 
     separator_item = gtk_separator_tool_item_new ();
-    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), separator_item, -1);
+    gtk_toolbar_insert (GTK_TOOLBAR (toolbar), separator_item, -1);
     gtk_separator_tool_item_set_draw (GTK_SEPARATOR_TOOL_ITEM (separator_item), FALSE);
     gtk_tool_item_set_expand (GTK_TOOL_ITEM (separator_item), TRUE);
 
     filter_item = gtk_tool_item_new ();
-    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), filter_item, -1);
+    gtk_toolbar_insert (GTK_TOOLBAR (toolbar), filter_item, -1);
     priv->filter_entry = GTK_ENTRY (gtk_entry_new ());
-    gtk_container_add (GTK_CONTAINER (filter_item), GTK_WIDGET (priv->filter_entry));
 
     g_object_bind_property (priv->filter_entry, "text",
                             priv->collection, "filter-term",
                             0);
 
     /* Create book view */
-    scrolled = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
-    gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (scrolled));
+    scroll_box = GTK_CONTAINER (gtk_box_new (GTK_ORIENTATION_VERTICAL, 0));
 
     model = books_collection_get_model (priv->collection);
     priv->tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (model));
+    g_object_ref (priv->tree_view);
+    gtk_widget_set_vexpand (GTK_WIDGET (priv->tree_view), TRUE);
 
     renderer = gtk_cell_renderer_text_new ();
 
@@ -301,19 +361,47 @@ books_main_window_init (BooksMainWindow *window)
     selection = gtk_tree_view_get_selection (priv->tree_view);
     gtk_tree_selection_set_mode (selection, GTK_SELECTION_SINGLE);
 
+    /* Create icon view */
+    priv->icon_view = GTK_ICON_VIEW (gtk_icon_view_new_with_model (model));
+    g_object_ref (priv->icon_view);
+
+    gtk_widget_set_vexpand (GTK_WIDGET (priv->icon_view), TRUE);
+    priv->view = GTK_WIDGET (priv->icon_view);
+
+    gtk_icon_view_set_text_column (priv->icon_view, BOOKS_COLLECTION_TITLE_COLUMN);
+
+    priv->list_scroll = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
+    priv->icon_scroll = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
+
+    /* Layout widgets */
+    gtk_container_add (GTK_CONTAINER (window), priv->main_box);
+    gtk_container_add (GTK_CONTAINER (priv->main_box), menubar);
+    gtk_container_add (GTK_CONTAINER (priv->main_box), toolbar);
+    gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (scroll_box));
+
+    gtk_container_add (GTK_CONTAINER (filter_item), GTK_WIDGET (priv->filter_entry));
+
+    gtk_container_add (GTK_CONTAINER (scroll_box), GTK_WIDGET (priv->list_scroll));
+    gtk_container_add (GTK_CONTAINER (scroll_box), GTK_WIDGET (priv->icon_scroll));
+
+    gtk_container_add (GTK_CONTAINER (priv->icon_scroll), GTK_WIDGET (priv->icon_view));
+    gtk_container_add (GTK_CONTAINER (priv->list_scroll), GTK_WIDGET (priv->tree_view));
+
+    /* Show widgets */
+    gtk_widget_show (priv->main_box);
+    gtk_widget_show_all (toolbar);
+    gtk_widget_show_all (menubar);
+    gtk_widget_show (GTK_WIDGET (scroll_box));
+    gtk_widget_show (GTK_WIDGET (priv->icon_scroll));
+    gtk_widget_show (GTK_WIDGET (priv->icon_view));
+    gtk_widget_show (GTK_WIDGET (priv->tree_view));
+
+    /* Connect signals */
     g_signal_connect (priv->tree_view, "row-activated",
                       G_CALLBACK (on_row_activated), priv);
 
     g_signal_connect (priv->tree_view, "key-press-event",
                       G_CALLBACK (on_tree_view_key_press), priv);
-
-    /* Create icon view */
-    priv->icon_view = GTK_ICON_VIEW (gtk_icon_view_new_with_model (model));
-
-    gtk_container_add (GTK_CONTAINER (scrolled), GTK_WIDGET (priv->icon_view));
-    gtk_widget_set_vexpand (GTK_WIDGET (priv->icon_view), TRUE);
-
-    gtk_icon_view_set_text_column (priv->icon_view, BOOKS_COLLECTION_TITLE_COLUMN);
 
     g_signal_connect (priv->icon_view, "item-activated",
                       G_CALLBACK (on_item_activated), priv);

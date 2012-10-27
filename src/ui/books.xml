@@ -1,4 +1,23 @@
-<toolbar name="ToolBar">
-  <toolitem action="BookAdd"/>
-  <toolitem action="BookRemove"/>
-</toolbar>
+<ui>
+  <menubar name="MenuBar">
+    <menu name="BooksMenu" action="Books">
+        <menuitem name="BooksAddMenu" action="BookAdd" />
+        <separator />
+        <menuitem name="BooksQuitMenu" action="BooksQuit" />
+    </menu>
+
+    <menu name="EditMenu" action="Edit">
+        <menuitem name="BooksRemoveMenu" action="BookRemove" />
+    </menu>
+
+    <menu name="ViewMenu" action="View">
+        <menuitem name="ViewIconMenu" action="ViewIcon" />
+        <menuitem name="ViewListMenu" action="ViewList" />
+    </menu>
+  </menubar>
+
+  <toolbar name="ToolBar">
+    <toolitem action="BookAdd"/>
+    <toolitem action="BookRemove"/>
+  </toolbar>
+</ui>
