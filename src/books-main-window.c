@@ -25,7 +25,8 @@ struct _BooksMainWindowPrivate {
     GtkActionGroup  *action_group;
     GtkEntry        *filter_entry;
 
-    GtkTreeView     *books_view;
+    GtkTreeView     *tree_view;
+    GtkIconView     *icon_view;
     BooksCollection *collection;
 };
 
@@ -90,17 +91,29 @@ action_remove_selected_book (GtkAction *action,
     GtkTreeIter iter;
 
     priv = window->priv;
-    selection = gtk_tree_view_get_selection (priv->books_view);
+    selection = gtk_tree_view_get_selection (priv->tree_view);
 
     if (gtk_tree_selection_get_selected (selection, &model, &iter))
         books_collection_remove_book (priv->collection, &iter);
 }
 
 static void
-on_row_activated (GtkTreeView *view,
-                  GtkTreePath *path,
-                  GtkTreeViewColumn *col,
-                  BooksMainWindowPrivate *priv)
+remove_book_from_icon_view (GtkIconView *icon_view,
+                            GtkTreePath *path,
+                            BooksMainWindowPrivate *priv)
+{
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    model = books_collection_get_model (priv->collection);
+
+    if (gtk_tree_model_get_iter (model, &iter, path))
+        books_collection_remove_book (priv->collection, &iter);
+}
+
+static void
+open_selected_book (BooksMainWindowPrivate *priv,
+                    GtkTreePath *path)
 {
     BooksEpub *epub;
     GError *error = NULL;
@@ -117,16 +130,52 @@ on_row_activated (GtkTreeView *view,
     }
 }
 
+static void
+on_row_activated (GtkTreeView *view,
+                  GtkTreePath *path,
+                  GtkTreeViewColumn *col,
+                  BooksMainWindowPrivate *priv)
+{
+    open_selected_book (priv, path);
+}
+
+static void
+on_item_activated (GtkIconView *icon_view,
+                   GtkTreePath *path,
+                   BooksMainWindowPrivate *priv)
+{
+    open_selected_book (priv, path);
+}
+
 static gboolean
-on_books_view_key_press (GtkWidget *widget,
-                         GdkEventKey *event,
-                         BooksMainWindowPrivate *priv)
+on_tree_view_key_press (GtkWidget *widget,
+                        GdkEventKey *event,
+                        BooksMainWindowPrivate *priv)
 {
     if (event->keyval == GDK_KEY_Delete) {
         GtkAction *action;
 
         action = gtk_action_group_get_action (priv->action_group, "BookRemove");
         gtk_action_activate (action);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static gboolean
+on_icon_view_key_press (GtkIconView *view,
+                        GdkEventKey *event,
+                        BooksMainWindowPrivate *priv)
+{
+    if (event->keyval == GDK_KEY_Delete) {
+        GtkAction *action;
+
+        action = gtk_action_group_get_action (priv->action_group, "BookRemove");
+        gtk_action_activate (action);
+        gtk_icon_view_selected_foreach (view,
+                                        (GtkIconViewForeachFunc) remove_book_from_icon_view,
+                                        priv);
         return TRUE;
     }
 
@@ -231,9 +280,7 @@ books_main_window_init (BooksMainWindow *window)
     gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (scrolled));
 
     model = books_collection_get_model (priv->collection);
-    priv->books_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (model));
-    gtk_container_add (GTK_CONTAINER (scrolled), GTK_WIDGET (priv->books_view));
-    gtk_widget_set_vexpand (GTK_WIDGET (priv->books_view), TRUE);
+    priv->tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (model));
 
     renderer = gtk_cell_renderer_text_new ();
 
@@ -242,21 +289,35 @@ books_main_window_init (BooksMainWindow *window)
             NULL);
 
     gtk_tree_view_column_set_sort_column_id (author_column, BOOKS_COLLECTION_AUTHOR_COLUMN);
-    gtk_tree_view_append_column (priv->books_view, author_column);
+    gtk_tree_view_append_column (priv->tree_view, author_column);
 
     title_column = gtk_tree_view_column_new_with_attributes (_("Title"), renderer,
             "text", BOOKS_COLLECTION_TITLE_COLUMN,
             NULL);
 
     gtk_tree_view_column_set_sort_column_id (title_column, BOOKS_COLLECTION_TITLE_COLUMN);
-    gtk_tree_view_append_column (priv->books_view, title_column);
+    gtk_tree_view_append_column (priv->tree_view, title_column);
 
-    selection = gtk_tree_view_get_selection (priv->books_view);
+    selection = gtk_tree_view_get_selection (priv->tree_view);
     gtk_tree_selection_set_mode (selection, GTK_SELECTION_SINGLE);
 
-    g_signal_connect (priv->books_view, "row-activated",
+    g_signal_connect (priv->tree_view, "row-activated",
                       G_CALLBACK (on_row_activated), priv);
 
-    g_signal_connect (priv->books_view, "key-press-event",
-                      G_CALLBACK (on_books_view_key_press), priv);
+    g_signal_connect (priv->tree_view, "key-press-event",
+                      G_CALLBACK (on_tree_view_key_press), priv);
+
+    /* Create icon view */
+    priv->icon_view = GTK_ICON_VIEW (gtk_icon_view_new_with_model (model));
+
+    gtk_container_add (GTK_CONTAINER (scrolled), GTK_WIDGET (priv->icon_view));
+    gtk_widget_set_vexpand (GTK_WIDGET (priv->icon_view), TRUE);
+
+    gtk_icon_view_set_text_column (priv->icon_view, BOOKS_COLLECTION_TITLE_COLUMN);
+
+    g_signal_connect (priv->icon_view, "item-activated",
+                      G_CALLBACK (on_item_activated), priv);
+
+    g_signal_connect (priv->icon_view, "key-press-event",
+                      G_CALLBACK (on_icon_view_key_press), priv);
 }

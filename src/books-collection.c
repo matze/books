@@ -237,7 +237,7 @@ books_collection_set_property (GObject *object,
             priv->filter_term = g_strdup (g_value_get_string (value));
             gtk_tree_model_filter_refilter (GTK_TREE_MODEL_FILTER (priv->filtered));
             break;
-            
+
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
             break;
@@ -301,7 +301,8 @@ books_collection_init (BooksCollection *collection)
     priv->store = gtk_list_store_new (BOOKS_COLLECTION_N_COLUMNS,
                                       G_TYPE_STRING,
                                       G_TYPE_STRING,
-                                      G_TYPE_STRING);
+                                      G_TYPE_STRING,
+                                      GDK_TYPE_PIXBUF);
 
     priv->filtered = gtk_tree_model_filter_new (GTK_TREE_MODEL (priv->store), NULL);
 
