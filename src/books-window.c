@@ -49,7 +49,7 @@ books_window_set_epub (BooksWindow *window,
 static void
 load_web_view_content (BooksWindowPrivate *priv)
 {
-    gchar *uri;
+    const gchar *uri;
 
     uri = books_epub_get_uri (priv->epub);
 
@@ -64,7 +64,6 @@ load_web_view_content (BooksWindowPrivate *priv)
                       NULL);
     }
 
-    g_free (uri);
     update_navigation_buttons (priv);
 }
 
@@ -80,26 +79,39 @@ update_navigation_buttons (BooksWindowPrivate *priv)
 
 static void
 on_go_back_clicked (GtkToolButton *button,
-                    BooksWindow *parent)
+                    BooksWindowPrivate *priv)
 {
-    BooksWindowPrivate *priv;
-    gchar *content;
-
-    priv = parent->priv;
     books_epub_previous (priv->epub);
     load_web_view_content (priv);
 }
 
 static void
 on_go_forward_clicked (GtkToolButton *button,
-                       BooksWindow *parent)
+                       BooksWindowPrivate *priv)
 {
-    BooksWindowPrivate *priv;
-    gchar *content;
-
-    priv = parent->priv;
     books_epub_next (priv->epub);
     load_web_view_content (priv);
+}
+
+static void
+on_load_status_changed (WebKitWebView *view,
+                        GParamSpec *pspec,
+                        BooksWindowPrivate *priv)
+{
+    WebKitLoadStatus load_status;
+
+    load_status = webkit_web_view_get_load_status (view);
+
+    if (load_status == WEBKIT_LOAD_FINISHED) {
+        const gchar *load_uri;
+        const gchar *current_uri;
+
+        current_uri = books_epub_get_uri (priv->epub);
+        load_uri = webkit_web_view_get_uri (view);
+
+        if (g_strcmp0 (current_uri, load_uri))
+            books_epub_set_uri (priv->epub, load_uri);
+    }
 }
 
 static void
@@ -149,7 +161,6 @@ books_window_get_property(GObject *object,
     }
 }
 
-
 static void
 books_window_class_init (BooksWindowClass *klass)
 {
@@ -186,10 +197,10 @@ books_window_init (BooksWindow *window)
     gtk_widget_set_sensitive (priv->go_forward_item, FALSE);
 
     g_signal_connect (priv->go_back_item, "clicked",
-                      G_CALLBACK (on_go_back_clicked), window);
+                      G_CALLBACK (on_go_back_clicked), priv);
 
     g_signal_connect (priv->go_forward_item, "clicked",
-                      G_CALLBACK (on_go_forward_clicked), window);
+                      G_CALLBACK (on_go_forward_clicked), priv);
 
     /* Add EPUB view */
     priv->scrolled_window = gtk_scrolled_window_new (NULL, NULL);
@@ -198,6 +209,10 @@ books_window_init (BooksWindow *window)
     priv->html_view = webkit_web_view_new ();
     gtk_widget_set_vexpand (priv->html_view, TRUE);
     gtk_container_add (GTK_CONTAINER (priv->scrolled_window), priv->html_view);
+
+    g_signal_connect (priv->html_view, "notify::load-status",
+                      G_CALLBACK (on_load_status_changed),
+                      priv);
 
     /* Initialize builder */
     priv->builder = gtk_builder_new ();

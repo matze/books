@@ -14,6 +14,7 @@ static GError   *extract_archive            (BooksEpubPrivate *priv,
 static gchar    *get_content                (BooksEpubPrivate *priv, const gchar *pathname);
 static gchar    *get_opf_path               (BooksEpubPrivate *priv);
 static void      populate_document_spine    (BooksEpubPrivate *priv);
+static gchar    *remove_uri_anchor          (const gchar *uri);
 
 GQuark
 books_epub_error_quark (void)
@@ -85,24 +86,35 @@ books_epub_open (BooksEpub *epub,
     return TRUE;
 }
 
-gchar *
+const gchar *
 books_epub_get_uri (BooksEpub *epub)
 {
     BooksEpubPrivate *priv;
-    gchar *path;
-    gchar *uri;
     GError *error = NULL;
 
     g_return_if_fail (BOOKS_IS_EPUB (epub));
     priv = epub->priv;
-    path = g_build_path (G_DIR_SEPARATOR_S, priv->path, priv->current->data, NULL);
-    uri = g_filename_to_uri (path, NULL, &error);
+    return priv->current != NULL ? priv->current->data : NULL;
+}
 
-    if (error != NULL)
-        g_warning ("%s\n", error->message);
+void
+books_epub_set_uri (BooksEpub *epub,
+                    const gchar *uri)
+{
+    BooksEpubPrivate *priv;
+    gchar *normalized_uri;
+    GList *result;
 
-    g_free (path);
-    return uri;
+    g_return_if_fail (BOOKS_IS_EPUB (epub));
+
+    priv = epub->priv;
+    normalized_uri = remove_uri_anchor (uri);
+    result = g_list_find_custom (priv->documents, normalized_uri, (GCompareFunc) g_strcmp0);
+
+    if (result != NULL)
+        priv->current = result;
+
+    g_free (normalized_uri);
 }
 
 void
@@ -165,6 +177,19 @@ books_epub_get_meta (BooksEpub *epub,
 
     xmlXPathFreeObject (object);
     return value;
+}
+
+static gchar *
+remove_uri_anchor (const gchar *uri)
+{
+    gchar *anchor;
+
+    anchor = g_strrstr (uri, "#");
+
+    if (anchor == NULL)
+        return g_strdup (uri);
+    else
+        return g_strndup (uri, anchor - uri);
 }
 
 static gint
@@ -387,9 +412,14 @@ populate_document_spine (BooksEpubPrivate *priv)
             item = get_document_item (priv->opf_xpath_context, item_id);
 
             if (item != NULL) {
-                gchar *full_path;
-                full_path = g_build_path (G_DIR_SEPARATOR_S, opf_prefix, item, NULL);
-                priv->documents = g_list_append (priv->documents, full_path);
+                gchar *path;
+                gchar *uri;
+                GError *error = NULL;
+
+                path = g_build_path (G_DIR_SEPARATOR_S, priv->path, opf_prefix, item, NULL);
+                uri = g_filename_to_uri (path, NULL, &error);
+                priv->documents = g_list_append (priv->documents, uri);
+                g_free (path);
             }
         }
     }
