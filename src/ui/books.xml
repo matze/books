@@ -1,0 +1,4 @@
+<toolbar name="ToolBar">
+  <toolitem action="BookAdd"/>
+  <toolitem action="BookRemove"/>
+</toolbar>

@@ -46,12 +46,10 @@ books_collection_add_book (BooksCollection *collection,
 {
     BooksCollectionPrivate *priv;
     GtkTreeIter iter;
-    gchar *sql_error;
     const gchar *author;
     const gchar *title;
     const gchar *insert_sql = "INSERT INTO books (author, title, path) VALUES (?, ?, ?)";
     sqlite3_stmt *insert_stmt = NULL;
-    GError *error = NULL;
 
     g_return_if_fail (BOOKS_IS_COLLECTION (collection));
 
@@ -206,10 +204,6 @@ row_visible (GtkTreeModel *model,
 static void
 books_collection_dispose (GObject *object)
 {
-    BooksCollectionPrivate *priv;
-
-    priv = BOOKS_COLLECTION_GET_PRIVATE (object);
-
     G_OBJECT_CLASS (books_collection_parent_class)->dispose (object);
 }
 

@@ -1,7 +1,9 @@
 
 #include <archive.h>
+#include <archive_entry.h>
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 #include "books-epub.h"
 
 G_DEFINE_TYPE(BooksEpub, books_epub, G_TYPE_OBJECT)
@@ -44,12 +46,11 @@ books_epub_open (BooksEpub *epub,
                  GError **error)
 {
     BooksEpubPrivate *priv;
-    gint result;
     gchar *basename;
     gchar *opf_data;
     GError *tmp_error = NULL;
 
-    g_return_if_fail (BOOKS_IS_EPUB (epub) && filename != NULL);
+    g_return_val_if_fail (BOOKS_IS_EPUB (epub) && filename != NULL, FALSE);
 
     priv = epub->priv;
 
@@ -76,11 +77,15 @@ books_epub_open (BooksEpub *epub,
 
     priv->opf_path = get_opf_path (priv);
     opf_data = get_content (priv, priv->opf_path);
-    priv->opf_tree = xmlParseDoc (opf_data);
+    priv->opf_tree = xmlParseDoc ((const xmlChar*) opf_data);
     g_free (opf_data);
     priv->opf_xpath_context = xmlXPathNewContext (priv->opf_tree);
-    xmlXPathRegisterNs (priv->opf_xpath_context, "dc", "http://purl.org/dc/elements/1.1/");
-    xmlXPathRegisterNs (priv->opf_xpath_context, "pkg", "http://www.idpf.org/2007/opf");
+    xmlXPathRegisterNs (priv->opf_xpath_context,
+                        (const xmlChar *) "dc",
+                        (const xmlChar *) "http://purl.org/dc/elements/1.1/");
+    xmlXPathRegisterNs (priv->opf_xpath_context,
+                        (const xmlChar *) "pkg",
+                        (const xmlChar *) "http://www.idpf.org/2007/opf");
 
     populate_document_spine (priv);
     return TRUE;
@@ -90,9 +95,8 @@ const gchar *
 books_epub_get_uri (BooksEpub *epub)
 {
     BooksEpubPrivate *priv;
-    GError *error = NULL;
 
-    g_return_if_fail (BOOKS_IS_EPUB (epub));
+    g_return_val_if_fail (BOOKS_IS_EPUB (epub), NULL);
     priv = epub->priv;
     return priv->current != NULL ? priv->current->data : NULL;
 }
@@ -144,14 +148,14 @@ books_epub_previous (BooksEpub *epub)
 gboolean
 books_epub_is_first (BooksEpub *epub)
 {
-    g_return_if_fail (BOOKS_IS_EPUB (epub));
+    g_return_val_if_fail (BOOKS_IS_EPUB (epub), FALSE);
     return epub->priv->current == g_list_first (epub->priv->documents);
 }
 
 gboolean
 books_epub_is_last (BooksEpub *epub)
 {
-    g_return_if_fail (BOOKS_IS_EPUB (epub));
+    g_return_val_if_fail (BOOKS_IS_EPUB (epub), FALSE);
     return epub->priv->current == g_list_last (epub->priv->documents);
 }
 
@@ -164,15 +168,15 @@ books_epub_get_meta (BooksEpub *epub,
     gchar *expression;
     const gchar *value = NULL;
 
-    g_return_if_fail (BOOKS_IS_EPUB (epub));
+    g_return_val_if_fail (BOOKS_IS_EPUB (epub), NULL);
 
     priv = epub->priv;
     expression = g_strdup_printf ("//pkg:package/pkg:metadata/dc:%s", key);
-    object = xmlXPathEvalExpression (expression, priv->opf_xpath_context);
+    object = xmlXPathEvalExpression ((const xmlChar *) expression, priv->opf_xpath_context);
 
     if (!xmlXPathNodeSetIsEmpty (object->nodesetval)) {
-        value = xmlNodeListGetString (priv->opf_tree,
-                                      object->nodesetval->nodeTab[0]->xmlChildrenNode, 1);
+        value = (const gchar *) xmlNodeListGetString (priv->opf_tree,
+                                                      object->nodesetval->nodeTab[0]->xmlChildrenNode, 1);
     }
 
     xmlXPathFreeObject (object);
@@ -198,7 +202,7 @@ copy_archive_data (struct archive *ar, struct archive *aw)
     gint r;
     const void *buff;
     size_t size;
-    guint64  offset;
+    gint64  offset;
 
     for (;;) {
         r = archive_read_data_block(ar, &buff, &size, &offset);
@@ -335,19 +339,21 @@ get_opf_path (BooksEpubPrivate *priv)
     xmlDoc *tree;
     xmlXPathContext *context;
     xmlXPathObject *object;
-    xmlNode *node;
     gchar *path = NULL;
 
     container_data = get_content (priv, "META-INF/container.xml");
-    tree = xmlParseDoc (container_data);
+    tree = xmlParseDoc ((const xmlChar *) container_data);
 
     if (tree == NULL)
         return NULL;
 
     context = xmlXPathNewContext (tree);
 
-    xmlXPathRegisterNs (context, "c", "urn:oasis:names:tc:opendocument:xmlns:container");
-    object = xmlXPathEvalExpression ("//c:container/c:rootfiles/c:rootfile",
+    xmlXPathRegisterNs (context,
+                        (const xmlChar *) "c",
+                        (const xmlChar *) "urn:oasis:names:tc:opendocument:xmlns:container");
+
+    object = xmlXPathEvalExpression ((const xmlChar *) "//c:container/c:rootfiles/c:rootfile",
                                      context);
 
     if (object == NULL) {
@@ -356,7 +362,8 @@ get_opf_path (BooksEpubPrivate *priv)
     }
 
     if (object->nodesetval != NULL)
-        path = g_strdup (xmlGetProp (object->nodesetval->nodeTab[0], "full-path"));
+        path = g_strdup ((const gchar *) xmlGetProp (object->nodesetval->nodeTab[0],
+                                                     (const xmlChar *) "full-path"));
 
 get_opf_path_cleanup:
     xmlXPathFreeObject (object);
@@ -375,10 +382,11 @@ get_document_item (xmlXPathContext *context, gchar *item_id)
     gchar *item_html = NULL;
 
     expression = g_strdup_printf ("//pkg:package/pkg:manifest/pkg:item[@id='%s']", item_id);
-    object = xmlXPathEvalExpression (expression, context);
+    object = xmlXPathEvalExpression ((const xmlChar *) expression, context);
 
     if (object->nodesetval != NULL)
-        item_html = g_strdup (xmlGetProp (object->nodesetval->nodeTab[0], "href"));
+        item_html = g_strdup ((const gchar *) xmlGetProp (object->nodesetval->nodeTab[0],
+                                                          (const xmlChar *) "href"));
 
     g_free (expression);
     return item_html;
@@ -396,7 +404,7 @@ populate_document_spine (BooksEpubPrivate *priv)
     }
 
     opf_prefix = g_path_get_dirname (priv->opf_path);
-    object = xmlXPathEvalExpression ("//pkg:package/pkg:spine/pkg:itemref",
+    object = xmlXPathEvalExpression ((const xmlChar *) "//pkg:package/pkg:spine/pkg:itemref",
                                      priv->opf_xpath_context);
 
     if (object->nodesetval != NULL) {
@@ -408,7 +416,7 @@ populate_document_spine (BooksEpubPrivate *priv)
             gchar *item;
 
             node = object->nodesetval->nodeTab[i];
-            item_id = xmlGetProp (node, "idref");
+            item_id = (gchar *) xmlGetProp (node, (const xmlChar *) "idref");
             item = get_document_item (priv->opf_xpath_context, item_id);
 
             if (item != NULL) {

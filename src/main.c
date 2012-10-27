@@ -16,7 +16,6 @@ main (int argc,
       char *argv[])
 {
     GtkWidget *window;
-    GError *error = NULL;
     gchar *locale_dir;
 
     gtk_init (&argc, &argv);

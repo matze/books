@@ -15,15 +15,30 @@ G_DEFINE_TYPE(BooksMainWindow, books_main_window, GTK_TYPE_WINDOW)
 
 #define BOOKS_MAIN_WINDOW_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), BOOKS_TYPE_MAIN_WINDOW, BooksMainWindowPrivate))
 
+static void action_add_book (GtkAction *, BooksMainWindow *window);
+static void action_remove_selected_book (GtkAction *, BooksMainWindow *window);
 
 struct _BooksMainWindowPrivate {
+    GtkUIManager    *manager;
     GtkWidget       *main_box;
     GtkWidget       *toolbar;
+    GtkActionGroup  *action_group;
     GtkEntry        *filter_entry;
 
     GtkTreeView     *books_view;
     BooksCollection *collection;
 };
+
+static GtkActionEntry action_entries[] = {
+    { "BookAdd", GTK_STOCK_ADD, N_("Add Book..."), "<control>O",
+      N_("Add a book to the collection"),
+      G_CALLBACK (action_add_book) },
+    { "BookRemove", GTK_STOCK_REMOVE, N_("Remove Book"), "Delete",
+      N_("Remove selected book from the collection"),
+      G_CALLBACK (action_remove_selected_book) },
+};
+
+static gint n_action_entries = G_N_ELEMENTS (action_entries);
 
 GtkWidget *
 books_main_window_new (void)
@@ -32,13 +47,13 @@ books_main_window_new (void)
 }
 
 static void
-on_add_ebook_button_clicked (GtkToolButton *button,
-                             BooksMainWindow *parent)
+action_add_book (GtkAction *action,
+                 BooksMainWindow *window)
 {
     GtkWidget *file_chooser;
     GError *error = NULL;
 
-    file_chooser = gtk_file_chooser_dialog_new (_("Open EPUB"), GTK_WINDOW (parent),
+    file_chooser = gtk_file_chooser_dialog_new (_("Open EPUB"), GTK_WINDOW (window),
                                                 GTK_FILE_CHOOSER_ACTION_OPEN,
                                                 GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
                                                 GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
@@ -49,7 +64,7 @@ on_add_ebook_button_clicked (GtkToolButton *button,
         BooksEpub *epub;
         gchar *filename;
 
-        priv = parent->priv;
+        priv = window->priv;
         filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (file_chooser));
         epub = books_epub_new ();
 
@@ -66,23 +81,19 @@ on_add_ebook_button_clicked (GtkToolButton *button,
 }
 
 static void
-remove_currently_selected_book (BooksMainWindowPrivate *priv)
+action_remove_selected_book (GtkAction *action,
+                             BooksMainWindow *window)
 {
+    BooksMainWindowPrivate *priv;
     GtkTreeSelection *selection;
     GtkTreeModel *model;
     GtkTreeIter iter;
 
+    priv = window->priv;
     selection = gtk_tree_view_get_selection (priv->books_view);
 
     if (gtk_tree_selection_get_selected (selection, &model, &iter))
         books_collection_remove_book (priv->collection, &iter);
-}
-
-static void
-on_remove_ebook_button_clicked (GtkToolButton *button,
-                                BooksMainWindowPrivate *priv)
-{
-    remove_currently_selected_book (priv);
 }
 
 static void
@@ -91,9 +102,6 @@ on_row_activated (GtkTreeView *view,
                   GtkTreeViewColumn *col,
                   BooksMainWindowPrivate *priv)
 {
-    GtkTreeIter iter;
-    GtkTreePath *filtered_path;
-    GtkTreePath *child_path;
     BooksEpub *epub;
     GError *error = NULL;
 
@@ -115,7 +123,10 @@ on_books_view_key_press (GtkWidget *widget,
                          BooksMainWindowPrivate *priv)
 {
     if (event->keyval == GDK_KEY_Delete) {
-        remove_currently_selected_book (priv);
+        GtkAction *action;
+
+        action = gtk_action_group_get_action (priv->action_group, "BookRemove");
+        gtk_action_activate (action);
         return TRUE;
     }
 
@@ -149,8 +160,6 @@ static void
 books_main_window_init (BooksMainWindow *window)
 {
     BooksMainWindowPrivate *priv;
-    GtkToolItem         *add_ebook_item;
-    GtkToolItem         *remove_ebook_item;
     GtkToolItem         *separator_item;
     GtkToolItem         *filter_item;
     GtkContainer        *scrolled;
@@ -159,28 +168,49 @@ books_main_window_init (BooksMainWindow *window)
     GtkTreeViewColumn   *title_column;
     GtkCellRenderer     *renderer;
     GtkTreeSelection    *selection;
+    GBytes              *bytes;
+    gsize                size;
+    const gchar         *ui_data;
+    GError              *error = NULL;
 
     window->priv = priv = BOOKS_MAIN_WINDOW_GET_PRIVATE (window);
 
     /* Create book collection */
     priv->collection = books_collection_new ();
 
+    /* Create actions */
+    priv->action_group = gtk_action_group_new ("MainActions");
+    gtk_action_group_set_translation_domain (priv->action_group, GETTEXT_PACKAGE);
+    gtk_action_group_add_actions (priv->action_group, action_entries, n_action_entries, window);
+
+    priv->manager = gtk_ui_manager_new ();
+    bytes = g_resources_lookup_data ("/com/github/matze/books/ui/books.xml", 0, &error);
+
+    if (error != NULL) {
+        g_error ("%s\n", error->message);
+        g_error_free (error);
+    }
+
+    ui_data = (const gchar *) g_bytes_get_data (bytes, &size);
+    gtk_ui_manager_insert_action_group (priv->manager, priv->action_group, -1);
+    gtk_ui_manager_add_ui_from_string (priv->manager, ui_data, size, &error);
+
+    if (error != NULL) {
+        g_error ("%s\n", error->message);
+        g_error_free (error);
+    }
+
+    g_bytes_unref (bytes);
+
+    /* Create widgets */
     priv->main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add (GTK_CONTAINER (window), priv->main_box);
 
     /* Add toolbar */
-    priv->toolbar = gtk_toolbar_new ();
+    priv->toolbar = gtk_ui_manager_get_widget (priv->manager, "/ToolBar");
     gtk_container_add (GTK_CONTAINER (priv->main_box), priv->toolbar);
     gtk_style_context_add_class (gtk_widget_get_style_context (priv->toolbar),
                                  GTK_STYLE_CLASS_PRIMARY_TOOLBAR);
-
-    add_ebook_item = gtk_tool_button_new_from_stock (GTK_STOCK_ADD);
-    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), add_ebook_item, -1);
-    gtk_tool_item_set_tooltip_text (add_ebook_item, _("Add EPUB"));
-
-    remove_ebook_item = gtk_tool_button_new_from_stock (GTK_STOCK_REMOVE);
-    gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), remove_ebook_item, -1);
-    gtk_tool_item_set_tooltip_text (remove_ebook_item, _("Remove EPUB"));
 
     separator_item = gtk_separator_tool_item_new ();
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), separator_item, -1);
@@ -192,17 +222,11 @@ books_main_window_init (BooksMainWindow *window)
     priv->filter_entry = GTK_ENTRY (gtk_entry_new ());
     gtk_container_add (GTK_CONTAINER (filter_item), GTK_WIDGET (priv->filter_entry));
 
-    g_signal_connect (add_ebook_item, "clicked",
-                      G_CALLBACK (on_add_ebook_button_clicked), window);
-
-    g_signal_connect (remove_ebook_item, "clicked",
-                      G_CALLBACK (on_remove_ebook_button_clicked), priv);
-
     g_object_bind_property (priv->filter_entry, "text",
                             priv->collection, "filter-term",
                             0);
 
-    /* ... and its view */
+    /* Create book view */
     scrolled = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
     gtk_container_add (GTK_CONTAINER (priv->main_box), GTK_WIDGET (scrolled));
 
@@ -236,4 +260,3 @@ books_main_window_init (BooksMainWindow *window)
     g_signal_connect (priv->books_view, "key-press-event",
                       G_CALLBACK (on_books_view_key_press), priv);
 }
-
