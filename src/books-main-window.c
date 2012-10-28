@@ -31,6 +31,9 @@ struct _BooksMainWindowPrivate {
     GtkTreeView     *tree_view;
     GtkIconView     *icon_view;
 
+    gint             width;
+    gint             height;
+
     BooksCollection *collection;
 };
 
@@ -237,6 +240,26 @@ on_icon_view_key_press (GtkIconView *view,
 }
 
 static void
+on_window_resize (GtkContainer *container,
+                  BooksMainWindowPrivate *priv)
+{
+    gint width;
+    gint height;
+
+    gtk_window_get_size (GTK_WINDOW (container), &width, &height);
+
+    if (width != priv->width || height != priv->height) {
+        priv->width = width;
+        priv->height = height;
+
+        if (priv->view == GTK_WIDGET (priv->icon_view)) {
+            gtk_icon_view_set_columns (priv->icon_view, 0);
+            gtk_icon_view_set_columns (priv->icon_view, -1);
+        }
+    }
+}
+
+static void
 books_main_window_dispose (GObject *object)
 {
     G_OBJECT_CLASS (books_main_window_parent_class)->dispose (object);
@@ -409,4 +432,7 @@ books_main_window_init (BooksMainWindow *window)
 
     g_signal_connect (priv->icon_view, "key-press-event",
                       G_CALLBACK (on_icon_view_key_press), priv);
+
+    g_signal_connect (window, "check-resize",
+                      G_CALLBACK (on_window_resize), priv);
 }
