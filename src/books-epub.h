@@ -33,21 +33,22 @@ struct _BooksEpubClass {
     GObjectClass parent_class;
 };
 
-BooksEpub  *books_epub_new          (void);
-gboolean    books_epub_open         (BooksEpub      *epub,
-                                     const gchar   *filename,
-                                     GError       **error);
-const gchar*books_epub_get_meta     (BooksEpub      *epub,
-                                     gchar          *key);
-const gchar*books_epub_get_uri      (BooksEpub      *epub);
-void        books_epub_set_uri      (BooksEpub      *epub,
-                                     const gchar    *uri);
-void        books_epub_next         (BooksEpub      *epub);
-void        books_epub_previous     (BooksEpub      *epub);
-gboolean    books_epub_is_first     (BooksEpub      *epub);
-gboolean    books_epub_is_last      (BooksEpub      *epub);
-GType       books_epub_get_type     (void);
-GQuark      books_epub_error_quark  (void);
+BooksEpub     * books_epub_new          (void);
+gboolean        books_epub_open         (BooksEpub      *epub,
+                                         const gchar   *filename,
+                                         GError       **error);
+const gchar   * books_epub_get_meta     (BooksEpub      *epub,
+                                         gchar          *key);
+const gchar   * books_epub_get_uri      (BooksEpub      *epub);
+void            books_epub_set_uri      (BooksEpub      *epub,
+                                         const gchar    *uri);
+const gchar   * books_epub_get_cover    (BooksEpub      *epub);
+void            books_epub_next         (BooksEpub      *epub);
+void            books_epub_previous     (BooksEpub      *epub);
+gboolean        books_epub_is_first     (BooksEpub      *epub);
+gboolean        books_epub_is_last      (BooksEpub      *epub);
+GType           books_epub_get_type     (void);
+GQuark          books_epub_error_quark  (void);
 
 G_END_DECLS
 

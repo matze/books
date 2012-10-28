@@ -369,6 +369,7 @@ books_main_window_init (BooksMainWindow *window)
     priv->view = GTK_WIDGET (priv->icon_view);
 
     gtk_icon_view_set_text_column (priv->icon_view, BOOKS_COLLECTION_TITLE_COLUMN);
+    gtk_icon_view_set_pixbuf_column (priv->icon_view, BOOKS_COLLECTION_ICON_COLUMN);
 
     priv->list_scroll = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));
     priv->icon_scroll = GTK_CONTAINER (gtk_scrolled_window_new (NULL, NULL));

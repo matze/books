@@ -13,6 +13,8 @@ G_DEFINE_TYPE(BooksCollection, books_collection, G_TYPE_OBJECT)
 
 #define BOOKS_COLLECTION_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), BOOKS_TYPE_COLLECTION, BooksCollectionPrivate))
 
+static void set_pixbuf_column (GtkListStore *store, GtkTreeIter *iter, const gchar *cover);
+
 enum {
     PROP_0,
     PROP_FILTER_TERM
@@ -48,7 +50,9 @@ books_collection_add_book (BooksCollection *collection,
     GtkTreeIter iter;
     const gchar *author;
     const gchar *title;
-    const gchar *insert_sql = "INSERT INTO books (author, title, path) VALUES (?, ?, ?)";
+    const gchar *cover;
+    const gchar *empty = "";
+    const gchar *insert_sql = "INSERT INTO books (author, title, path, cover) VALUES (?, ?, ?, ?)";
     sqlite3_stmt *insert_stmt = NULL;
 
     g_return_if_fail (BOOKS_IS_COLLECTION (collection));
@@ -56,6 +60,7 @@ books_collection_add_book (BooksCollection *collection,
     priv = collection->priv;
     author = books_epub_get_meta (epub, "creator");
     title = books_epub_get_meta (epub, "title");
+    cover = books_epub_get_cover (epub);
 
     gtk_list_store_append (priv->store, &iter);
     gtk_list_store_set (priv->store, &iter,
@@ -64,10 +69,19 @@ books_collection_add_book (BooksCollection *collection,
                         BOOKS_COLLECTION_PATH_COLUMN, path,
                         -1);
 
+    if (cover != NULL)
+        set_pixbuf_column (priv->store, &iter, cover);
+
     sqlite3_prepare_v2 (priv->db, insert_sql, -1, &insert_stmt, NULL);
     sqlite3_bind_text (insert_stmt, 1, author, strlen (author), NULL);
     sqlite3_bind_text (insert_stmt, 2, title, strlen (title), NULL);
     sqlite3_bind_text (insert_stmt, 3, path, strlen (path), NULL);
+
+    if (cover != NULL)
+        sqlite3_bind_text (insert_stmt, 4, cover, strlen (cover), NULL);
+    else
+        sqlite3_bind_text (insert_stmt, 4, empty, strlen (empty), NULL);
+
     sqlite3_step (insert_stmt);
     sqlite3_finalize (insert_stmt);
 }
@@ -141,6 +155,28 @@ books_collection_get_book (BooksCollection *collection,
     return NULL;
 }
 
+static void
+set_pixbuf_column (GtkListStore *store,
+                   GtkTreeIter *iter,
+                   const gchar *cover)
+{
+    if (strlen (cover) > 0) {
+        GdkPixbuf *pixbuf;
+        GError *error = NULL;
+
+        pixbuf = gdk_pixbuf_new_from_file_at_size (cover, 64, -1, &error);
+
+        if (error != NULL) {
+            g_printerr (_("Could not load cover image: %s\n"), error->message);
+        }
+        else {
+            gtk_list_store_set (store, iter,
+                                BOOKS_COLLECTION_ICON_COLUMN, pixbuf,
+                                -1);
+        }
+    }
+}
+
 static int
 insert_row_into_model (gpointer user_data,
                        gint argc,
@@ -149,9 +185,11 @@ insert_row_into_model (gpointer user_data,
 {
     GtkListStore *store;
     GtkTreeIter iter;
+    gchar *cover;
 
-    g_assert (argc == 3);
+    g_assert (argc == 4);
     store = GTK_LIST_STORE (user_data);
+    cover = argv[3];
 
     gtk_list_store_append (store, &iter);
     gtk_list_store_set (store, &iter,
@@ -159,6 +197,8 @@ insert_row_into_model (gpointer user_data,
                         BOOKS_COLLECTION_TITLE_COLUMN, argv[1],
                         BOOKS_COLLECTION_PATH_COLUMN, argv[2],
                         -1);
+
+    set_pixbuf_column (store, &iter, cover);
     return 0;
 }
 
@@ -317,13 +357,13 @@ books_collection_init (BooksCollection *collection)
     sqlite3_open (db_path, &priv->db);
     g_free (db_path);
 
-    if (sqlite3_exec (priv->db, "CREATE TABLE IF NOT EXISTS books (author TEXT, title TEXT, path TEXT)",
+    if (sqlite3_exec (priv->db, "CREATE TABLE IF NOT EXISTS books (author TEXT, title TEXT, path TEXT, cover TEXT)",
                       NULL, NULL, &db_error)) {
         g_warning (_("Could not create table: %s\n"), db_error);
         sqlite3_free (db_error);
     }
 
-    if (sqlite3_exec (priv->db, "SELECT author, title, path FROM books",
+    if (sqlite3_exec (priv->db, "SELECT author, title, path, cover FROM books",
                       insert_row_into_model, priv->store, &db_error)) {
         g_warning (_("Could not select data: %s\n"), db_error);
         sqlite3_free (db_error);
