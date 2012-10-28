@@ -467,6 +467,7 @@ get_cover_path (BooksEpubPrivate *priv)
         "cover",
         "cover-image",
         "my-cover-image",
+        "cover.jpeg",
         NULL,
     };
 
