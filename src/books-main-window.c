@@ -147,29 +147,6 @@ action_add_book (GtkAction *action,
 }
 
 static void
-action_remove_selected_book (GtkAction *action,
-                             BooksMainWindow *window)
-{
-    BooksMainWindowPrivate *priv;
-    GtkTreeSelection *selection;
-    GtkTreeModel *model;
-    GtkTreeIter iter;
-
-    priv = window->priv;
-    selection = gtk_tree_view_get_selection (priv->tree_view);
-
-    if (gtk_tree_selection_get_selected (selection, &model, &iter))
-        books_collection_remove_book (priv->collection, &iter);
-}
-
-static void
-action_quit (GtkAction *action,
-             BooksMainWindow *window)
-{
-    gtk_main_quit ();
-}
-
-static void
 remove_book_from_icon_view (GtkIconView *icon_view,
                             GtkTreePath *path,
                             BooksMainWindowPrivate *priv)
@@ -181,6 +158,35 @@ remove_book_from_icon_view (GtkIconView *icon_view,
 
     if (gtk_tree_model_get_iter (model, &iter, path))
         books_collection_remove_book (priv->collection, &iter);
+}
+
+static void
+action_remove_selected_book (GtkAction *action,
+                             BooksMainWindow *window)
+{
+    BooksMainWindowPrivate *priv;
+    GtkTreeSelection *selection;
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    priv = window->priv;
+
+    if (priv->view == GTK_WIDGET (priv->tree_view)) {
+        selection = gtk_tree_view_get_selection (priv->tree_view);
+
+        if (gtk_tree_selection_get_selected (selection, &model, &iter))
+            books_collection_remove_book (priv->collection, &iter);
+    }
+    else {
+        gtk_icon_view_selected_foreach (priv->icon_view, (GtkIconViewForeachFunc) remove_book_from_icon_view, priv);
+    }
+}
+
+static void
+action_quit (GtkAction *action,
+             BooksMainWindow *window)
+{
+    gtk_main_quit ();
 }
 
 static void
@@ -217,41 +223,6 @@ on_item_activated (GtkIconView *icon_view,
                    BooksMainWindowPrivate *priv)
 {
     open_selected_book (priv, path);
-}
-
-static gboolean
-on_tree_view_key_press (GtkWidget *widget,
-                        GdkEventKey *event,
-                        BooksMainWindowPrivate *priv)
-{
-    if (event->keyval == GDK_KEY_Delete) {
-        GtkAction *action;
-
-        action = gtk_action_group_get_action (priv->action_group, "BookRemove");
-        gtk_action_activate (action);
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-static gboolean
-on_icon_view_key_press (GtkIconView *view,
-                        GdkEventKey *event,
-                        BooksMainWindowPrivate *priv)
-{
-    if (event->keyval == GDK_KEY_Delete) {
-        GtkAction *action;
-
-        action = gtk_action_group_get_action (priv->action_group, "BookRemove");
-        gtk_action_activate (action);
-        gtk_icon_view_selected_foreach (view,
-                                        (GtkIconViewForeachFunc) remove_book_from_icon_view,
-                                        priv);
-        return TRUE;
-    }
-
-    return FALSE;
 }
 
 static void
@@ -443,14 +414,8 @@ books_main_window_init (BooksMainWindow *window)
     g_signal_connect (priv->tree_view, "row-activated",
                       G_CALLBACK (on_row_activated), priv);
 
-    g_signal_connect (priv->tree_view, "key-press-event",
-                      G_CALLBACK (on_tree_view_key_press), priv);
-
     g_signal_connect (priv->icon_view, "item-activated",
                       G_CALLBACK (on_item_activated), priv);
-
-    g_signal_connect (priv->icon_view, "key-press-event",
-                      G_CALLBACK (on_icon_view_key_press), priv);
 
     g_signal_connect (window, "check-resize",
                       G_CALLBACK (on_window_resize), priv);
