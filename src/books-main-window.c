@@ -286,6 +286,7 @@ static void
 books_main_window_init (BooksMainWindow *window)
 {
     BooksMainWindowPrivate *priv;
+    GtkAccelGroup       *accel_group;
     GtkWidget           *toolbar;
     GtkWidget           *menubar;
     GtkToolItem         *separator_item;
@@ -332,6 +333,9 @@ books_main_window_init (BooksMainWindow *window)
     }
 
     g_bytes_unref (bytes);
+
+    accel_group = gtk_ui_manager_get_accel_group (priv->manager);
+    gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
 
     /* Create widgets */
     priv->main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
