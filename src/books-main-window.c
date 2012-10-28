@@ -98,37 +98,47 @@ action_view_changed (GtkRadioAction *action,
 }
 
 static void
+import_book (gchar *path,
+             BooksMainWindowPrivate *priv)
+{
+    BooksEpub *epub;
+    GError *error = NULL;
+
+    epub = books_epub_new ();
+
+    if (books_epub_open (epub, path, &error))
+        books_collection_add_book (priv->collection, epub, path);
+    else
+        g_printerr ("%s\n", error->message);
+
+    g_object_unref (epub);
+}
+
+static void
 action_add_book (GtkAction *action,
                  BooksMainWindow *window)
 {
-    GtkWidget *file_chooser;
-    GError *error = NULL;
+    GtkWidget *chooser;
 
-    file_chooser = gtk_file_chooser_dialog_new (_("Open EPUB"), GTK_WINDOW (window),
-                                                GTK_FILE_CHOOSER_ACTION_OPEN,
-                                                GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                                NULL);
+    chooser = gtk_file_chooser_dialog_new (_("Open EPUB"), GTK_WINDOW (window),
+                                           GTK_FILE_CHOOSER_ACTION_OPEN,
+                                           GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                           GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                           NULL);
 
-    if (gtk_dialog_run (GTK_DIALOG (file_chooser)) == GTK_RESPONSE_ACCEPT) {
+    gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER (chooser), TRUE);
+
+    if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT) {
         BooksMainWindowPrivate *priv;
-        BooksEpub *epub;
-        gchar *filename;
+        GSList *filenames;
 
         priv = window->priv;
-        filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (file_chooser));
-        epub = books_epub_new ();
-
-        if (books_epub_open (epub, filename, &error))
-            books_collection_add_book (priv->collection, epub, filename);
-        else
-            g_printerr ("%s\n", error->message);
-
-        g_free (filename);
-        g_object_unref (epub);
+        filenames = gtk_file_chooser_get_filenames (GTK_FILE_CHOOSER (chooser));
+        g_slist_foreach (filenames, (GFunc) import_book, priv);
+        g_slist_free_full (filenames, g_free);
     }
 
-    gtk_widget_destroy (file_chooser);
+    gtk_widget_destroy (chooser);
 }
 
 static void
