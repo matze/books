@@ -119,6 +119,10 @@ action_add_book (GtkAction *action,
                  BooksMainWindow *window)
 {
     GtkWidget *chooser;
+    GtkFileFilter *filter;
+
+    filter = gtk_file_filter_new ();
+    gtk_file_filter_add_pattern (filter, "*.epub");
 
     chooser = gtk_file_chooser_dialog_new (_("Open EPUB"), GTK_WINDOW (window),
                                            GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -127,6 +131,7 @@ action_add_book (GtkAction *action,
                                            NULL);
 
     gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER (chooser), TRUE);
+    gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (chooser), filter);
 
     if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT) {
         BooksMainWindowPrivate *priv;
