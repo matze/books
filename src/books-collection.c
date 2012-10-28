@@ -14,6 +14,7 @@ G_DEFINE_TYPE(BooksCollection, books_collection, G_TYPE_OBJECT)
 #define BOOKS_COLLECTION_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), BOOKS_TYPE_COLLECTION, BooksCollectionPrivate))
 
 static void set_pixbuf_column (GtkListStore *store, GtkTreeIter *iter, const gchar *cover);
+static gchar *get_author_title_markup (const gchar *author, const gchar *title);
 
 enum {
     PROP_0,
@@ -48,6 +49,7 @@ books_collection_add_book (BooksCollection *collection,
 {
     BooksCollectionPrivate *priv;
     GtkTreeIter iter;
+    gchar *markup;
     const gchar *author;
     const gchar *title;
     const gchar *cover;
@@ -61,12 +63,14 @@ books_collection_add_book (BooksCollection *collection,
     author = books_epub_get_meta (epub, "creator");
     title = books_epub_get_meta (epub, "title");
     cover = books_epub_get_cover (epub);
+    markup = get_author_title_markup (author, title);
 
     gtk_list_store_append (priv->store, &iter);
     gtk_list_store_set (priv->store, &iter,
                         BOOKS_COLLECTION_AUTHOR_COLUMN, author,
                         BOOKS_COLLECTION_TITLE_COLUMN, title,
                         BOOKS_COLLECTION_PATH_COLUMN, path,
+                        BOOKS_COLLECTION_MARKUP_COLUMN, markup,
                         -1);
 
     if (cover != NULL)
@@ -84,6 +88,7 @@ books_collection_add_book (BooksCollection *collection,
 
     sqlite3_step (insert_stmt);
     sqlite3_finalize (insert_stmt);
+    g_free (markup);
 }
 
 void
@@ -177,6 +182,13 @@ set_pixbuf_column (GtkListStore *store,
     }
 }
 
+static gchar *
+get_author_title_markup (const gchar *author,
+                         const gchar *title)
+{
+    return g_markup_printf_escaped ("%s &#8212; <i>%s</i>", author, title);
+}
+
 static int
 insert_row_into_model (gpointer user_data,
                        gint argc,
@@ -185,20 +197,28 @@ insert_row_into_model (gpointer user_data,
 {
     GtkListStore *store;
     GtkTreeIter iter;
+    gchar *author;
+    gchar *title;
     gchar *cover;
+    gchar *markup;
 
     g_assert (argc == 4);
     store = GTK_LIST_STORE (user_data);
+    author = argv[0];
+    title = argv[1];
     cover = argv[3];
+    markup = get_author_title_markup (author, title);
 
     gtk_list_store_append (store, &iter);
     gtk_list_store_set (store, &iter,
-                        BOOKS_COLLECTION_AUTHOR_COLUMN, argv[0],
-                        BOOKS_COLLECTION_TITLE_COLUMN, argv[1],
+                        BOOKS_COLLECTION_AUTHOR_COLUMN, author,
+                        BOOKS_COLLECTION_TITLE_COLUMN, title,
+                        BOOKS_COLLECTION_MARKUP_COLUMN, markup,
                         BOOKS_COLLECTION_PATH_COLUMN, argv[2],
                         -1);
 
     set_pixbuf_column (store, &iter, cover);
+    g_free (markup);
     return 0;
 }
 
@@ -339,6 +359,7 @@ books_collection_init (BooksCollection *collection)
 
     /* Create model */
     priv->store = gtk_list_store_new (BOOKS_COLLECTION_N_COLUMNS,
+                                      G_TYPE_STRING,
                                       G_TYPE_STRING,
                                       G_TYPE_STRING,
                                       G_TYPE_STRING,
