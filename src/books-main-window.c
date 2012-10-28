@@ -42,7 +42,7 @@ static GtkActionEntry action_entries[] = {
     { "Edit",  NULL, N_("Edit") },
     { "View",  NULL, N_("View") },
 
-    { "BookAdd", GTK_STOCK_ADD, N_("Add Book..."), "<control>O",
+    { "BookAdd", GTK_STOCK_ADD, N_("Add Books..."), "<control>O",
       N_("Add a book to the collection"),
       G_CALLBACK (action_add_book) },
     { "BookRemove", GTK_STOCK_REMOVE, N_("Remove Book"), "Delete",
