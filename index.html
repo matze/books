@@ -30,31 +30,39 @@
         <section id="main-content">
           <h1>About</h1>
 
-<p><em>Books</em> is a simple Gtk+ 3.0 application to view and manage books in EPUB format. This is the current state:</p>
+<p><em>Books</em> is a simple GTK+ 3 application to view and manage e-books in EPUB format. This is the current state:</p>
 
 <p><img src="http://i.imgur.com/njqnp.png" alt="Screenshot"></p>
 
 <h1>Installation</h1>
 
-<p>Configure, compile and install Books with</p>
+<p>If you compile from the GitHub sources make sure to get the autotools, intltool,
+autopoint and libtool first. On Ubuntu 12.04, all you need is:</p>
 
-<pre><code>./autogen.sh
-./configure
-make &amp;&amp; sudo make install
+<pre><code>$ sudo apt-get install intltool autopoint libtool
+$ ./autogen.sh
+</code></pre>
+
+<p>Additionally, you need to install the dependencies:</p>
+
+<pre><code>$ sudo apt-get install libarchive-dev libsqlite3-dev libwebkitgtk-3.0-dev libgtk-3-dev libxml2-dev
+</code></pre>
+
+<p>Configure, compile and install <em>Books</em> with</p>
+
+<pre><code>$ ./configure
+$ make &amp;&amp; sudo make install
 </code></pre>
 
 <p>To run it (for now), call <code>books</code> from the command line.</p>
 
-<p>Travis says <a href="https://travis-ci.org/matze/books"><img src="https://travis-ci.org/matze/books.png" alt="Build Status"></a>.</p>
+<h1>Contributions</h1>
 
-<h2>Dependencies</h2>
+<p>If you feel Books need enhancements or bug fixes, don't hesitate to file a bug
+on the GitHub <a href="https://github.com/matze/books/issues">issue tracker</a> or fork and do a pull request.</p>
 
-<ul>
-<li>Gtk+ 3.0</li>
-<li>WebKitGtk</li>
-<li>libarchive</li>
-<li>sqlite3</li>
-</ul><p>If you want to see Books in your language, don't hesitate to contribute by translating Books at <a href="https://www.transifex.com/projects/p/books/">Transifex</a>.</p>
+<p>If you want to see Books in your language, you can translate the application at
+<a href="https://www.transifex.com/projects/p/books/">Transifex</a>.</p>
 
 <h1>License</h1>
 
