@@ -18,6 +18,10 @@ stamp-h1
 config.*
 Makefile
 
+data/*
+!data/Makefile.am
+!data/books.desktop.in.in
+
 po/*
 !po/LINGUAS
 !po/*.po

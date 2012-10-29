@@ -36,7 +36,9 @@ AC_PREFIX_DEFAULT("/usr")
 
 AC_CONFIG_FILES([
             Makefile
-            src/Makefile
+            data/Makefile
+            data/books.desktop.in
             po/Makefile.in
+            src/Makefile
             ])
 AC_OUTPUT
