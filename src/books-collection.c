@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sqlite3.h>
 #include <glib/gi18n.h>
+#include <glib/gstdio.h>
 
 #include "books-collection.h"
 
@@ -351,6 +352,7 @@ static void
 books_collection_init (BooksCollection *collection)
 {
     BooksCollectionPrivate *priv;
+    gchar *config_path;
     gchar *db_path;
     gchar *db_error;
 
@@ -373,10 +375,15 @@ books_collection_init (BooksCollection *collection)
 
     priv->sorted = gtk_tree_model_sort_new_with_model (priv->filtered);
 
+    /* Create directory if it does not exist */
+    config_path = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir(), "books", NULL);
+
+    if (!g_file_test (config_path, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR))
+        g_mkdir (config_path, 0700);
+
     /* Create database */
-    db_path = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir(), "books", "meta.db", NULL);
-    sqlite3_open (db_path, &priv->db);
-    g_free (db_path);
+    db_path = g_build_path (G_DIR_SEPARATOR_S, config_path, "meta.db", NULL);
+    g_assert (sqlite3_open (db_path, &priv->db) == SQLITE_OK);
 
     if (sqlite3_exec (priv->db, "CREATE TABLE IF NOT EXISTS books (author TEXT, title TEXT, path TEXT, cover TEXT)",
                       NULL, NULL, &db_error)) {
@@ -389,4 +396,7 @@ books_collection_init (BooksCollection *collection)
         g_warning (_("Could not select data: %s\n"), db_error);
         sqlite3_free (db_error);
     }
+
+    g_free (db_path);
+    g_free (config_path);
 }
