@@ -18,6 +18,7 @@ G_DEFINE_TYPE(BooksMainWindow, books_main_window, GTK_TYPE_WINDOW)
 static void action_quit (GtkAction *, BooksMainWindow *window);
 static void action_add_book (GtkAction *, BooksMainWindow *window);
 static void action_remove_selected_book (GtkAction *, BooksMainWindow *window);
+static void action_info (GtkAction *, BooksMainWindow *window);
 
 struct _BooksMainWindowPrivate {
     GtkUIManager    *manager;
@@ -41,6 +42,7 @@ static GtkActionEntry action_entries[] = {
     { "Books", NULL, N_("Books") },
     { "Edit",  NULL, N_("Edit") },
     { "View",  NULL, N_("View") },
+    { "Help",  NULL, N_("Help") },
 
     { "BookAdd", GTK_STOCK_ADD, N_("Add Books..."), "<control>O",
       N_("Add a book to the collection"),
@@ -52,6 +54,10 @@ static GtkActionEntry action_entries[] = {
     { "BooksQuit", GTK_STOCK_ADD, N_("Quit"), "<control>Q",
       N_("Quit"),
       G_CALLBACK (action_quit) },
+
+    { "BooksInfo", GTK_STOCK_ABOUT, N_("Info"), "",
+      N_("Show information about Books"),
+      G_CALLBACK (action_info) },
 };
 
 enum {
@@ -187,6 +193,25 @@ action_quit (GtkAction *action,
              BooksMainWindow *window)
 {
     gtk_main_quit ();
+}
+
+static void
+action_info (GtkAction *action,
+             BooksMainWindow *window)
+{
+    static const gchar *authors[] = {
+        "Matthias Vogelgesang",
+        NULL
+    };
+
+    gtk_show_about_dialog (NULL,
+                           "title", _("About Books"),
+                           "comments", _("Books is an e-book manager and viewer."),
+                           "authors", authors,
+                           "website", "http://matze.github.com/books",
+                           "license-type", GTK_LICENSE_GPL_3_0,
+                           "version", PACKAGE_VERSION,
+                           NULL);
 }
 
 static void

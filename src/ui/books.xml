@@ -14,6 +14,9 @@
         <menuitem name="ViewIconMenu" action="ViewIcon" />
         <menuitem name="ViewListMenu" action="ViewList" />
     </menu>
+    <menu name="HelpMenu" action="Help">
+        <menuitem name="BooksInfoMenu" action="BooksInfo" />
+    </menu>
   </menubar>
 
   <toolbar name="ToolBar">
