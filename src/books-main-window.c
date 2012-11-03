@@ -386,7 +386,12 @@ books_main_window_init (BooksMainWindow *window)
 
     filter_item = gtk_tool_item_new ();
     gtk_toolbar_insert (GTK_TOOLBAR (toolbar), filter_item, -1);
+
+#if GTK_CHECK_VERSION(3,6,0)
+    priv->filter_entry = GTK_ENTRY (gtk_search_entry_new ());
+#else
     priv->filter_entry = GTK_ENTRY (gtk_entry_new ());
+#endif
 
     g_object_bind_property (priv->filter_entry, "text",
                             priv->collection, "filter-term",
