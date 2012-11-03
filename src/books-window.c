@@ -20,10 +20,7 @@ struct _BooksWindowPrivate {
     GtkWidget *html_view;
     GtkWidget *go_forward_item;
     GtkWidget *go_back_item;
-
-    GtkBuilder  *builder;
-
-    BooksEpub   *epub;
+    BooksEpub *epub;
 };
 
 static void load_web_view_content       (BooksWindowPrivate *priv);
@@ -213,9 +210,6 @@ books_window_init (BooksWindow *window)
     g_signal_connect (priv->html_view, "notify::load-status",
                       G_CALLBACK (on_load_status_changed),
                       priv);
-
-    /* Initialize builder */
-    priv->builder = gtk_builder_new ();
 
     priv->epub = NULL;
 }
