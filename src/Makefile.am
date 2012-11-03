@@ -20,7 +20,7 @@ books_SOURCES = 			\
 		books-window.h 		\
 		books-main-window.c \
 		books-main-window.h \
-		$(BUILT_SOURCES)
+		$(BUILT_SOURCES_PRIVATE)
 
 books_LDADD = $(BOOKS_LIBS)
 
