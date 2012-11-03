@@ -21,6 +21,7 @@ config.*
 Makefile
 
 data/*
+!data/books.css
 !data/Makefile.am
 !data/books.desktop.in.in
 !data/com.github.matze.books.gschema.xml.in.in
