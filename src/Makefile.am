@@ -7,7 +7,7 @@ AM_CPPFLAGS = 						\
 
 bin_PROGRAMS = books
 
-BUILT_SOURCES = 			\
+BUILT_SOURCES_PRIVATE = 	\
 		books-resources.c
 
 books_SOURCES = 			\
@@ -20,15 +20,21 @@ books_SOURCES = 			\
 		books-window.h 		\
 		books-main-window.c \
 		books-main-window.h \
-		books.gresource.xml \
-		ui/books.xml 		\
 		$(BUILT_SOURCES)
 
 books_LDADD = $(BOOKS_LIBS)
 
-RESOURCES = $(shell $(GLIB_COMPILE_RESOURCES) --generate-dependencies books.gresource.xml)
+RESOURCES = $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=$(srcdir) --generate-dependencies $(srcdir)/books.gresource.xml)
 
 books-resources.c: books.gresource.xml $(RESOURCES)
-	$(GLIB_COMPILE_RESOURCES) --target=$@ --generate --c-name books books.gresource.xml
+	$(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=$(srcdir) --generate --c-name books $(srcdir)/books.gresource.xml
 
-CLEANFILES = *~
+EXTRA_DIST = 				\
+		books.gresource.xml \
+		ui/books.xml 		\
+		ui/book-cover.png
+
+CLEANFILES = $(BUILT_SOURCES_PRIVATE)
+
+dist-hook:
+	cd $(distdir); rm -f $(BUILT_SOURCES_PRIVATE)
