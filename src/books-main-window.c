@@ -200,7 +200,12 @@ action_info (GtkAction *action,
              BooksMainWindow *window)
 {
     static const gchar *authors[] = {
-        "Matthias Vogelgesang",
+        "Matthias Vogelgesang http://bloerg.net",
+        NULL
+    };
+
+    static const gchar *artists[] = {
+        "Charles Riccardi, from the Noun Project http://thenounproject.com/noun/book/#icon-No2051",
         NULL
     };
 
@@ -208,6 +213,7 @@ action_info (GtkAction *action,
                            "title", _("About Books"),
                            "comments", _("Books is an e-book manager and viewer."),
                            "authors", authors,
+                           "artists", artists,
                            "website", "http://matze.github.com/books",
                            "license-type", GTK_LICENSE_GPL_3_0,
                            "version", PACKAGE_VERSION,

@@ -2,5 +2,6 @@
 <gresources>
   <gresource prefix="/com/github/matze/books">
     <file>ui/books.xml</file>
+    <file>ui/book-cover.png</file>
   </gresource>
 </gresources>

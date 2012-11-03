@@ -14,8 +14,8 @@ G_DEFINE_TYPE(BooksCollection, books_collection, G_TYPE_OBJECT)
 
 #define BOOKS_COLLECTION_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), BOOKS_TYPE_COLLECTION, BooksCollectionPrivate))
 
-static void set_pixbuf_column (GtkListStore *store, GtkTreeIter *iter, const gchar *cover);
-static gchar *get_author_title_markup (const gchar *author, const gchar *title);
+static void   set_pixbuf_column_from_file (BooksCollectionPrivate *priv, GtkTreeIter *iter, const gchar *cover);
+static gchar *get_author_title_markup     (const gchar *author, const gchar *title);
 
 enum {
     PROP_0,
@@ -28,6 +28,7 @@ struct _BooksCollectionPrivate {
     GtkTreeModel    *filtered;
     sqlite3         *db;
     gchar           *filter_term;
+    GdkPixbuf       *placeholder;
 };
 
 BooksCollection *
@@ -74,8 +75,7 @@ books_collection_add_book (BooksCollection *collection,
                         BOOKS_COLLECTION_MARKUP_COLUMN, markup,
                         -1);
 
-    if (cover != NULL)
-        set_pixbuf_column (priv->store, &iter, cover);
+    set_pixbuf_column_from_file (priv, &iter, cover);
 
     sqlite3_prepare_v2 (priv->db, insert_sql, -1, &insert_stmt, NULL);
     sqlite3_bind_text (insert_stmt, 1, author, strlen (author), NULL);
@@ -162,25 +162,24 @@ books_collection_get_book (BooksCollection *collection,
 }
 
 static void
-set_pixbuf_column (GtkListStore *store,
-                   GtkTreeIter *iter,
-                   const gchar *cover)
+set_pixbuf_column_from_file (BooksCollectionPrivate *priv,
+                             GtkTreeIter *iter,
+                             const gchar *cover)
 {
-    if (strlen (cover) > 0) {
-        GdkPixbuf *pixbuf;
+    GdkPixbuf *pixbuf = priv->placeholder;
+
+    if (cover != NULL && strlen (cover) > 0) {
         GError *error = NULL;
 
         pixbuf = gdk_pixbuf_new_from_file_at_size (cover, 64, -1, &error);
 
         if (error != NULL) {
             g_printerr (_("Could not load cover image: %s\n"), error->message);
-        }
-        else {
-            gtk_list_store_set (store, iter,
-                                BOOKS_COLLECTION_ICON_COLUMN, pixbuf,
-                                -1);
+            pixbuf = priv->placeholder;
         }
     }
+
+    gtk_list_store_set (priv->store, iter, BOOKS_COLLECTION_ICON_COLUMN, pixbuf, -1);
 }
 
 static gchar *
@@ -196,7 +195,7 @@ insert_row_into_model (gpointer user_data,
                        gchar **argv,
                        gchar **column)
 {
-    GtkListStore *store;
+    BooksCollectionPrivate *priv;
     GtkTreeIter iter;
     gchar *author;
     gchar *title;
@@ -204,21 +203,21 @@ insert_row_into_model (gpointer user_data,
     gchar *markup;
 
     g_assert (argc == 4);
-    store = GTK_LIST_STORE (user_data);
+    priv = (BooksCollectionPrivate *) user_data;
     author = argv[0];
     title = argv[1];
     cover = argv[3];
     markup = get_author_title_markup (author, title);
 
-    gtk_list_store_append (store, &iter);
-    gtk_list_store_set (store, &iter,
+    gtk_list_store_append (priv->store, &iter);
+    gtk_list_store_set (priv->store, &iter,
                         BOOKS_COLLECTION_AUTHOR_COLUMN, author,
                         BOOKS_COLLECTION_TITLE_COLUMN, title,
                         BOOKS_COLLECTION_MARKUP_COLUMN, markup,
                         BOOKS_COLLECTION_PATH_COLUMN, argv[2],
                         -1);
 
-    set_pixbuf_column (store, &iter, cover);
+    set_pixbuf_column_from_file (priv, &iter, cover);
     g_free (markup);
     return 0;
 }
@@ -352,12 +351,31 @@ static void
 books_collection_init (BooksCollection *collection)
 {
     BooksCollectionPrivate *priv;
+    GInputStream *stream;
     gchar *config_path;
     gchar *db_path;
     gchar *db_error;
+    GError *error = NULL;
 
     collection->priv = priv = BOOKS_COLLECTION_GET_PRIVATE (collection);
     priv->filter_term = NULL;
+
+    /* Create pixbuf for unknown cover image */
+    stream = g_resources_open_stream ("/com/github/matze/books/ui/book-cover.png", 0, &error);
+
+    if (error != NULL) {
+        g_error ("%s\n", error->message);
+        g_error_free (error);
+    }
+
+    priv->placeholder = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+
+    if (error != NULL) {
+        g_error ("%s\n", error->message);
+        g_error_free (error);
+    }
+
+    g_input_stream_close (stream, NULL, NULL);
 
     /* Create model */
     priv->store = gtk_list_store_new (BOOKS_COLLECTION_N_COLUMNS,
@@ -392,7 +410,7 @@ books_collection_init (BooksCollection *collection)
     }
 
     if (sqlite3_exec (priv->db, "SELECT author, title, path, cover FROM books",
-                      insert_row_into_model, priv->store, &db_error)) {
+                      insert_row_into_model, priv, &db_error)) {
         g_warning (_("Could not select data: %s\n"), db_error);
         sqlite3_free (db_error);
     }
