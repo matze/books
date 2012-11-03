@@ -32,12 +32,15 @@ PKG_CHECK_MODULES([BOOKS],
              libxml-2.0
              sqlite3 >= 3.3])
 
+GLIB_GSETTINGS
+
 AC_PREFIX_DEFAULT("/usr")
 
 AC_CONFIG_FILES([
             Makefile
             data/Makefile
             data/books.desktop.in
+            data/com.github.matze.books.gschema.xml.in
             po/Makefile.in
             src/Makefile
             ])

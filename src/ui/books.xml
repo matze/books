@@ -8,6 +8,8 @@
 
     <menu name="EditMenu" action="Edit">
         <menuitem name="BooksRemoveMenu" action="BookRemove" />
+        <separator />
+        <menuitem name="BooksPreferencesMenu" action="BookPreferences" />
     </menu>
 
     <menu name="ViewMenu" action="View">

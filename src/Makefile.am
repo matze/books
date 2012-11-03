@@ -10,16 +10,18 @@ bin_PROGRAMS = books
 BUILT_SOURCES_PRIVATE = 	\
 		books-resources.c
 
-books_SOURCES = 			\
-		main.c 				\
-		books-collection.c 	\
-		books-collection.h 	\
-		books-epub.c 		\
-		books-epub.h 		\
-		books-window.c 		\
-		books-window.h 		\
-		books-main-window.c \
-		books-main-window.h \
+books_SOURCES = 					\
+		main.c 						\
+		books-collection.c 			\
+		books-collection.h 			\
+		books-epub.c 				\
+		books-epub.h 				\
+		books-window.c 				\
+		books-window.h 				\
+		books-main-window.c 		\
+		books-main-window.h 		\
+		books-preferences-dialog.c 	\
+		books-preferences-dialog.h 	\
 		$(BUILT_SOURCES_PRIVATE)
 
 books_LDADD = $(BOOKS_LIBS)
@@ -29,10 +31,11 @@ RESOURCES = $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=$(srcdir) --generate-d
 books-resources.c: books.gresource.xml $(RESOURCES)
 	$(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=$(srcdir) --generate --c-name books $(srcdir)/books.gresource.xml
 
-EXTRA_DIST = 				\
-		books.gresource.xml \
-		ui/books.xml 		\
-		ui/book-cover.png
+EXTRA_DIST = 							\
+		books.gresource.xml 			\
+		ui/books.xml 					\
+		ui/book-cover.png 				\
+		ui/books-preferences-dialog.ui
 
 CLEANFILES = $(BUILT_SOURCES_PRIVATE)
 

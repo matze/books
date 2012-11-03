@@ -5,6 +5,7 @@
 #include <webkit/webkit.h>
 
 #include "books-window.h"
+#include "books-preferences-dialog.h"
 #include "books-epub.h"
 
 
@@ -21,6 +22,7 @@ struct _BooksWindowPrivate {
     GtkWidget *go_forward_item;
     GtkWidget *go_back_item;
     BooksEpub *epub;
+    gchar     *css_uri;
 };
 
 static void load_web_view_content       (BooksWindowPrivate *priv);
@@ -54,10 +56,11 @@ load_web_view_content (BooksWindowPrivate *priv)
         WebKitWebSettings *settings;
 
         webkit_web_view_load_uri (WEBKIT_WEB_VIEW (priv->html_view), uri);
-
         settings = webkit_web_view_get_settings (WEBKIT_WEB_VIEW (priv->html_view));
+
         g_object_set (G_OBJECT (settings),
                       "default-font-family", "serif",
+                      "user-stylesheet-uri", priv->css_uri,
                       NULL);
     }
 
@@ -100,14 +103,27 @@ on_load_status_changed (WebKitWebView *view,
     load_status = webkit_web_view_get_load_status (view);
 
     if (load_status == WEBKIT_LOAD_FINISHED) {
+        WebKitDOMDocument *document;
+        WebKitDOMStyleSheetList *sheet_list;
         const gchar *load_uri;
         const gchar *current_uri;
+        guint i;
 
         current_uri = books_epub_get_uri (priv->epub);
         load_uri = webkit_web_view_get_uri (view);
 
         if (g_strcmp0 (current_uri, load_uri))
             books_epub_set_uri (priv->epub, load_uri);
+
+        document = webkit_web_view_get_dom_document (view);
+        sheet_list = webkit_dom_document_get_style_sheets (document);
+
+        for (i = 0; i < webkit_dom_style_sheet_list_get_length (sheet_list); i++) {
+            WebKitDOMStyleSheet *style_sheet;
+
+            style_sheet = webkit_dom_style_sheet_list_item (sheet_list, i);
+            webkit_dom_style_sheet_set_disabled (style_sheet, TRUE);
+        }
     }
 }
 
@@ -127,11 +143,27 @@ books_window_dispose (GObject *object)
 }
 
 static void
+books_window_finalize (GObject *object)
+{
+    BooksWindowPrivate *priv;
+
+    priv = BOOKS_WINDOW_GET_PRIVATE (object);
+
+    if (priv->css_uri != NULL) {
+        g_free (priv->css_uri);
+        priv->css_uri = NULL;
+    }
+
+    G_OBJECT_CLASS (books_window_parent_class)->finalize (object);
+}
+
+static void
 books_window_class_init (BooksWindowClass *klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     object_class->dispose = books_window_dispose;
+    object_class->finalize = books_window_finalize;
 
     g_type_class_add_private (klass, sizeof(BooksWindowPrivate));
 }
@@ -140,9 +172,11 @@ static void
 books_window_init (BooksWindow *window)
 {
     BooksWindowPrivate *priv;
+    GSettings *settings;
 
     window->priv = priv = BOOKS_WINDOW_GET_PRIVATE (window);
 
+    priv->epub = NULL;
     priv->main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add (GTK_CONTAINER (window), priv->main_box);
 
@@ -176,6 +210,20 @@ books_window_init (BooksWindow *window)
                       G_CALLBACK (on_load_status_changed),
                       priv);
 
-    priv->epub = NULL;
+    /* Create CSS uri if requested */
+    settings = g_settings_new ("com.github.matze.books");
+
+    if (g_settings_get_enum (settings, "style-sheet") == BOOKS_STYLE_SHEET_BOOKS) {
+        gchar *css_filename;
+
+        css_filename = g_build_filename (DATADIR, "books", "books.css", NULL);
+        priv->css_uri = g_filename_to_uri (css_filename, NULL, NULL);
+
+        g_free (css_filename);
+    }
+    else
+        priv->css_uri = NULL;
+
+    g_object_unref (settings);
 }
 

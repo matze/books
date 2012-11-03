@@ -14,6 +14,8 @@ src/Makefile.in
 src/books
 src/books-resources.c
 stamp-h1
+src/!*.c
+src/!*.h
 
 config.*
 Makefile
@@ -21,6 +23,7 @@ Makefile
 data/*
 !data/Makefile.am
 !data/books.desktop.in.in
+!data/com.github.matze.books.gschema.xml.in.in
 
 po/*
 !po/LINGUAS

@@ -3,6 +3,10 @@ src/main.c
 src/books-collection.c
 src/books-epub.c
 src/books-main-window.c
+src/books-preferences-dialog.c
 src/books-window.c
 
 data/books.desktop.in.in
+data/com.github.matze.books.gschema.xml.in.in
+
+[type: gettext/glade]src/ui/books-preferences-dialog.ui

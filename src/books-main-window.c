@@ -9,16 +9,18 @@
 #include "books-main-window.h"
 #include "books-window.h"
 #include "books-collection.h"
+#include "books-preferences-dialog.h"
 
 
 G_DEFINE_TYPE(BooksMainWindow, books_main_window, GTK_TYPE_WINDOW)
 
 #define BOOKS_MAIN_WINDOW_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), BOOKS_TYPE_MAIN_WINDOW, BooksMainWindowPrivate))
 
-static void action_quit (GtkAction *, BooksMainWindow *window);
-static void action_add_book (GtkAction *, BooksMainWindow *window);
+static void action_quit                 (GtkAction *, BooksMainWindow *window);
+static void action_add_book             (GtkAction *, BooksMainWindow *window);
 static void action_remove_selected_book (GtkAction *, BooksMainWindow *window);
-static void action_info (GtkAction *, BooksMainWindow *window);
+static void action_info                 (GtkAction *, BooksMainWindow *window);
+static void action_preferences          (GtkAction *, BooksMainWindow *window);
 
 struct _BooksMainWindowPrivate {
     GtkUIManager    *manager;
@@ -47,9 +49,14 @@ static GtkActionEntry action_entries[] = {
     { "BookAdd", GTK_STOCK_ADD, N_("Add Books..."), "<control>O",
       N_("Add a book to the collection"),
       G_CALLBACK (action_add_book) },
+
     { "BookRemove", GTK_STOCK_REMOVE, N_("Remove Book"), "Delete",
       N_("Remove selected book from the collection"),
       G_CALLBACK (action_remove_selected_book) },
+
+    { "BookPreferences", GTK_STOCK_PREFERENCES, N_("Preferences"), "",
+      N_("Preferences"),
+      G_CALLBACK (action_preferences) },
 
     { "BooksQuit", GTK_STOCK_ADD, N_("Quit"), "<control>Q",
       N_("Quit"),
@@ -218,6 +225,13 @@ action_info (GtkAction *action,
                            "license-type", GTK_LICENSE_GPL_3_0,
                            "version", PACKAGE_VERSION,
                            NULL);
+}
+
+static void
+action_preferences (GtkAction *action,
+                    BooksMainWindow *window)
+{
+    books_show_preferences_dialog (window);
 }
 
 static void

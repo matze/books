@@ -1,0 +1,9 @@
+<schemalist>
+  <schema gettext-domain="@GETTEXT_PACKAGE@" id="com.github.matze.books" path="/apps/books/">
+    <key name="style-sheet" enum="com.github.matze.books.BooksStyleSheetPreference">
+      <default>'publisher'</default>
+      <_summary>EPUB Style Sheet</_summary>
+      <_description>Specifies which style sheet to use for the viewer. Use "publisher" for the publisher defaults and "books" for an on-screen optimized style sheet.</_description>
+    </key>
+  </schema>
+</schemalist>

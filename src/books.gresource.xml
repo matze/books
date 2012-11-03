@@ -3,5 +3,6 @@
   <gresource prefix="/com/github/matze/books">
     <file>ui/books.xml</file>
     <file>ui/book-cover.png</file>
+    <file compressed="true">ui/books-preferences-dialog.ui</file>
   </gresource>
 </gresources>
