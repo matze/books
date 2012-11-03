@@ -1,6 +1,7 @@
 AC_PREREQ(2.60)
+
 AC_INIT([books],
-        [0.1],
+        [0.0.1],
         [matthias.vogelgesang@gmail.com])
 
 AC_CONFIG_MACRO_DIR([m4])
