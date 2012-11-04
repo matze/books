@@ -15,6 +15,7 @@ G_DEFINE_TYPE(BooksWindow, books_window, GTK_TYPE_WINDOW)
 
 
 struct _BooksWindowPrivate {
+    GSettings *settings;
     GtkWidget *main_box;
     GtkWidget *toolbar;
     GtkWidget *scrolled_window;
@@ -128,6 +129,17 @@ on_load_status_changed (WebKitWebView *view,
 }
 
 static void
+on_window_destroy (GtkWidget *widget,
+                   BooksWindowPrivate *priv)
+{
+    GtkAllocation allocation;
+
+    gtk_widget_get_allocation (widget, &allocation);
+    g_settings_set (priv->settings, "viewer-window-size",
+                    "(ii)", allocation.width, allocation.height);
+}
+
+static void
 books_window_dispose (GObject *object)
 {
     BooksWindowPrivate *priv;
@@ -172,9 +184,17 @@ static void
 books_window_init (BooksWindow *window)
 {
     BooksWindowPrivate *priv;
-    GSettings *settings;
+    guint width, height;
 
     window->priv = priv = BOOKS_WINDOW_GET_PRIVATE (window);
+
+    g_signal_connect (window, "destroy",
+                      G_CALLBACK (on_window_destroy), priv);
+
+    /* Load window geometry */
+    priv->settings = g_settings_new ("com.github.matze.books");
+    g_settings_get (priv->settings, "viewer-window-size", "(ii)", &width, &height);
+    gtk_window_set_default_size (GTK_WINDOW (window), width, height);
 
     priv->epub = NULL;
     priv->main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
@@ -211,9 +231,7 @@ books_window_init (BooksWindow *window)
                       priv);
 
     /* Create CSS uri if requested */
-    settings = g_settings_new ("com.github.matze.books");
-
-    if (g_settings_get_enum (settings, "style-sheet") == BOOKS_STYLE_SHEET_BOOKS) {
+    if (g_settings_get_enum (priv->settings, "style-sheet") == BOOKS_STYLE_SHEET_BOOKS) {
         gchar *css_filename;
 
         css_filename = g_build_filename (DATADIR, "books", "books.css", NULL);
@@ -223,7 +241,5 @@ books_window_init (BooksWindow *window)
     }
     else
         priv->css_uri = NULL;
-
-    g_object_unref (settings);
 }
 

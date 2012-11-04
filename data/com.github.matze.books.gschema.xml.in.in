@@ -1,9 +1,23 @@
 <schemalist>
   <schema gettext-domain="@GETTEXT_PACKAGE@" id="com.github.matze.books" path="/apps/books/">
+
+    <key name="main-window-size" type="(ii)">
+      <default>(800,600)</default>
+      <_summary>Size of the main window.</_summary>
+      <_description>Width and height of the main window.</_description>
+    </key>
+
+    <key name="viewer-window-size" type="(ii)">
+      <default>(600,850)</default>
+      <_summary>Size of the book view window.</_summary>
+      <_description>Width and height of the book view window.</_description>
+    </key>
+
     <key name="style-sheet" enum="com.github.matze.books.BooksStyleSheetPreference">
       <default>'publisher'</default>
       <_summary>EPUB Style Sheet</_summary>
       <_description>Specifies which style sheet to use for the viewer. Use "publisher" for the publisher defaults and "books" for an on-screen optimized style sheet.</_description>
     </key>
+
   </schema>
 </schemalist>

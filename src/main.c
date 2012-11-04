@@ -29,7 +29,6 @@ main (int argc,
     textdomain (GETTEXT_PACKAGE);
 
     window = books_main_window_new ();
-    gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
 
     g_signal_connect (G_OBJECT (window), "delete-event",
                       G_CALLBACK (gtk_main_quit), NULL);

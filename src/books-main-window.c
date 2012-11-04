@@ -23,6 +23,7 @@ static void action_info                 (GtkAction *, BooksMainWindow *window);
 static void action_preferences          (GtkAction *, BooksMainWindow *window);
 
 struct _BooksMainWindowPrivate {
+    GSettings       *settings;
     GtkUIManager    *manager;
     GtkWidget       *main_box;
     GtkContainer    *list_scroll;
@@ -293,6 +294,13 @@ on_window_resize (GtkContainer *container,
 static void
 books_main_window_dispose (GObject *object)
 {
+    BooksMainWindowPrivate *priv;
+
+    priv = BOOKS_MAIN_WINDOW_GET_PRIVATE (object);
+
+    g_settings_set (priv->settings, "main-window-size",
+                    "(ii)", priv->width, priv->height);
+
     G_OBJECT_CLASS (books_main_window_parent_class)->dispose (object);
 }
 
@@ -334,6 +342,11 @@ books_main_window_init (BooksMainWindow *window)
     GError              *error = NULL;
 
     window->priv = priv = BOOKS_MAIN_WINDOW_GET_PRIVATE (window);
+
+    /* Load settings */
+    priv->settings = g_settings_new ("com.github.matze.books");
+    g_settings_get (priv->settings, "main-window-size", "(ii)", &priv->width, &priv->height);
+    gtk_window_set_default_size (GTK_WINDOW (window), priv->width, priv->height);
 
     /* Create book collection */
     priv->collection = books_collection_new ();
