@@ -189,6 +189,78 @@ get_author_title_markup (const gchar *author,
     return g_markup_printf_escaped ("%s &#8212; <i>%s</i>", author, title);
 }
 
+static void
+create_db (BooksCollectionPrivate *priv)
+{
+    gchar *config_path;
+    gchar *db_path;
+    gchar *db_error;
+
+    /* Make sure the path exists */
+    config_path = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir(), "books", NULL);
+
+    if (!g_file_test (config_path, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR))
+        g_mkdir (config_path, 0700);
+
+    db_path = g_build_filename (config_path, "meta.db", NULL);
+    g_assert (sqlite3_open (db_path, &priv->db) == SQLITE_OK);
+
+    if (sqlite3_exec (priv->db,
+                      "CREATE TABLE IF NOT EXISTS books (author TEXT, title TEXT, path TEXT, cover TEXT)",
+                      NULL, NULL, &db_error)) {
+        g_warning (_("Could not create table: %s\n"), db_error);
+        sqlite3_free (db_error);
+    }
+
+    g_free (db_path);
+    g_free (config_path);
+}
+
+static int
+test_missing_book (gpointer user_data,
+                   gint argc,
+                   gchar **argv,
+                   gchar **column)
+{
+    GPtrArray *missing_books;
+    gchar *filename;
+    filename = argv[0];
+    missing_books = (GPtrArray *) user_data;
+
+    if (!g_file_test (filename, G_FILE_TEST_EXISTS)) {
+        g_warning ("`%s' does not exist anymore", filename);
+        g_ptr_array_add (missing_books, g_strdup (filename));
+    }
+
+    return 0;
+}
+
+static void
+remove_missing_books_from_db (BooksCollectionPrivate *priv)
+{
+    GPtrArray *missing_books;
+    guint i;
+    const gchar *delete_sql = "DELETE FROM books WHERE path=?";
+    sqlite3_stmt *delete_stmt = NULL;
+
+    missing_books = g_ptr_array_new_with_free_func ((GDestroyNotify) g_free);
+    sqlite3_exec (priv->db, "SELECT path FROM books", test_missing_book, missing_books, NULL);
+
+    sqlite3_prepare_v2 (priv->db, delete_sql, -1, &delete_stmt, NULL);
+
+    for (i = 0; i < missing_books->len; i++) {
+        gchar *filename;
+
+        filename = (gchar *) g_ptr_array_index (missing_books, i);
+        sqlite3_bind_text (delete_stmt, 1, filename, strlen (filename), NULL);
+        sqlite3_step (delete_stmt);
+        sqlite3_reset (delete_stmt);
+    }
+
+    sqlite3_finalize (delete_stmt);
+    g_ptr_array_free (missing_books, TRUE);
+}
+
 static int
 insert_row_into_model (gpointer user_data,
                        gint argc,
@@ -220,6 +292,18 @@ insert_row_into_model (gpointer user_data,
     set_pixbuf_column_from_file (priv, &iter, cover);
     g_free (markup);
     return 0;
+}
+
+static void
+insert_books_from_db_into_model (BooksCollectionPrivate *priv)
+{
+    gchar *db_error;
+
+    if (sqlite3_exec (priv->db, "SELECT author, title, path, cover FROM books",
+                      insert_row_into_model, priv, &db_error)) {
+        g_warning (_("Could not select data: %s\n"), db_error);
+        sqlite3_free (db_error);
+    }
 }
 
 static gboolean
@@ -352,9 +436,6 @@ books_collection_init (BooksCollection *collection)
 {
     BooksCollectionPrivate *priv;
     GInputStream *stream;
-    gchar *config_path;
-    gchar *db_path;
-    gchar *db_error;
     GError *error = NULL;
 
     collection->priv = priv = BOOKS_COLLECTION_GET_PRIVATE (collection);
@@ -393,28 +474,8 @@ books_collection_init (BooksCollection *collection)
 
     priv->sorted = gtk_tree_model_sort_new_with_model (priv->filtered);
 
-    /* Create directory if it does not exist */
-    config_path = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir(), "books", NULL);
-
-    if (!g_file_test (config_path, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR))
-        g_mkdir (config_path, 0700);
-
     /* Create database */
-    db_path = g_build_path (G_DIR_SEPARATOR_S, config_path, "meta.db", NULL);
-    g_assert (sqlite3_open (db_path, &priv->db) == SQLITE_OK);
-
-    if (sqlite3_exec (priv->db, "CREATE TABLE IF NOT EXISTS books (author TEXT, title TEXT, path TEXT, cover TEXT)",
-                      NULL, NULL, &db_error)) {
-        g_warning (_("Could not create table: %s\n"), db_error);
-        sqlite3_free (db_error);
-    }
-
-    if (sqlite3_exec (priv->db, "SELECT author, title, path, cover FROM books",
-                      insert_row_into_model, priv, &db_error)) {
-        g_warning (_("Could not select data: %s\n"), db_error);
-        sqlite3_free (db_error);
-    }
-
-    g_free (db_path);
-    g_free (config_path);
+    create_db (priv);
+    remove_missing_books_from_db (priv);
+    insert_books_from_db_into_model (priv);
 }
