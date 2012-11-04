@@ -224,7 +224,7 @@ action_info (GtkAction *action,
                            "artists", artists,
                            "website", "http://matze.github.com/books",
                            "license-type", GTK_LICENSE_GPL_3_0,
-                           "version", PACKAGE_VERSION,
+                           "version", PACKAGE_STRING,
                            NULL);
 }
 
