@@ -8,6 +8,7 @@
 #include <glib/gstdio.h>
 
 #include "books-collection.h"
+#include "books-removed-dialog.h"
 
 
 G_DEFINE_TYPE(BooksCollection, books_collection, G_TYPE_OBJECT)
@@ -227,10 +228,8 @@ test_missing_book (gpointer user_data,
     filename = argv[0];
     missing_books = (GPtrArray *) user_data;
 
-    if (!g_file_test (filename, G_FILE_TEST_EXISTS)) {
-        g_warning ("`%s' does not exist anymore", filename);
+    if (!g_file_test (filename, G_FILE_TEST_EXISTS))
         g_ptr_array_add (missing_books, g_strdup (filename));
-    }
 
     return 0;
 }
@@ -258,6 +257,26 @@ remove_missing_books_from_db (BooksCollectionPrivate *priv)
     }
 
     sqlite3_finalize (delete_stmt);
+
+    if (missing_books->len > 0) {
+       GtkDialog *dialog;
+       GtkListStore *model;
+
+       model = gtk_list_store_new (1, G_TYPE_STRING);
+
+       for (i = 0; i < missing_books->len; i++) {
+           gchar *filename;
+           GtkTreeIter iter;
+
+           filename = (gchar *) g_ptr_array_index (missing_books, i);
+           gtk_list_store_append (model, &iter);
+           gtk_list_store_set (model, &iter, 0, filename, -1);
+       }
+
+       dialog = books_removed_dialog_new (GTK_TREE_MODEL (model));
+       gtk_dialog_run (dialog);
+    }
+
     g_ptr_array_free (missing_books, TRUE);
 }
 

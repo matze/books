@@ -22,6 +22,8 @@ books_SOURCES = 					\
 		books-main-window.h 		\
 		books-preferences-dialog.c 	\
 		books-preferences-dialog.h 	\
+		books-removed-dialog.c 		\
+		books-removed-dialog.h 		\
 		$(BUILT_SOURCES_PRIVATE)
 
 books_LDADD = $(BOOKS_LIBS)
