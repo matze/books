@@ -68,6 +68,9 @@ books_collection_add_book (BooksCollection *collection,
     cover = books_epub_get_cover (epub);
     markup = get_author_title_markup (author, title);
 
+    if (author == NULL)
+        author = g_strdup ("n/a");
+
     gtk_list_store_append (priv->store, &iter);
     gtk_list_store_set (priv->store, &iter,
                         BOOKS_COLLECTION_AUTHOR_COLUMN, author,
