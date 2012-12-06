@@ -488,11 +488,14 @@ get_cover_path (BooksEpubPrivate *priv)
         if (!xmlXPathNodeSetIsEmpty (object->nodesetval)) {
             xmlNode *node;
             gchar *href;
+            gchar *unescaped;
 
             node = object->nodesetval->nodeTab[0];
             href = (gchar *) xmlGetProp (node, (const xmlChar *) "href");
-            path = get_content_filename (priv, href);
+            unescaped = g_uri_unescape_segment (href, NULL, NULL);
+            path = get_content_filename (priv, unescaped);
             g_free (href);
+            g_free (unescaped);
         }
 
         xmlXPathFreeObject (object);
