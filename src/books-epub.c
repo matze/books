@@ -460,23 +460,30 @@ populate_document_spine (BooksEpubPrivate *priv)
 static gchar *
 get_cover_path (BooksEpubPrivate *priv)
 {
-    guint i;
+    gchar *cover_id = NULL;
     gchar *path = NULL;
+    const gchar *meta_cover_expr = "//pkg:package/pkg:metadata/pkg:meta[@name='cover']";
+    const gchar *cover_item_expr = "//pkg:package/pkg:manifest/pkg:item[@id='%s']";
 
-    static const gchar *cover_ids[] = {
-        "cover",
-        "cover-image",
-        "my-cover-image",
-        "cover.jpeg",
-        NULL,
-    };
+    xmlXPathObject *object;
 
-    for (i = 0; cover_ids[i] != NULL && path == NULL; i++) {
-        xmlXPathObject *object;
-        gchar *expression;
+    /* First, get the cover id from the meta data */
+    object = xmlXPathEvalExpression ((const xmlChar *) meta_cover_expr, priv->opf_xpath_context);
 
-        expression = g_strdup_printf ("//pkg:package/pkg:manifest/pkg:item[@id='%s']", cover_ids[i]);
-        object = xmlXPathEvalExpression ((const xmlChar *) expression, priv->opf_xpath_context);
+    if (!xmlXPathNodeSetIsEmpty (object->nodesetval)) {
+        xmlNode *node;
+
+        node = object->nodesetval->nodeTab[0];
+        cover_id = (gchar *) xmlGetProp (node, (const xmlChar *) "content");
+    }
+
+    xmlXPathFreeObject (object);
+
+    if (cover_id != NULL) {
+        gchar *expr;
+
+        expr = g_strdup_printf (cover_item_expr, cover_id);
+        object = xmlXPathEvalExpression ((const xmlChar *) expr, priv->opf_xpath_context);
 
         if (!xmlXPathNodeSetIsEmpty (object->nodesetval)) {
             xmlNode *node;
@@ -488,9 +495,11 @@ get_cover_path (BooksEpubPrivate *priv)
             g_free (href);
         }
 
-        g_free (expression);
         xmlXPathFreeObject (object);
+        g_free (expr);
     }
+
+    g_free (cover_id);
 
     return path;
 }
