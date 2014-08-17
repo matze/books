@@ -204,11 +204,13 @@ books_window_init (BooksWindow *window)
     priv->toolbar = gtk_toolbar_new ();
     gtk_container_add (GTK_CONTAINER (priv->main_box), priv->toolbar);
 
-    priv->go_back_item = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_BACK));
+    priv->go_back_item = GTK_WIDGET (gtk_tool_button_new (NULL, NULL));
+    gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (priv->go_back_item), "go-previous");
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), GTK_TOOL_ITEM (priv->go_back_item), -1);
     gtk_widget_set_sensitive (priv->go_back_item, FALSE);
 
-    priv->go_forward_item = GTK_WIDGET (gtk_tool_button_new_from_stock (GTK_STOCK_GO_FORWARD));
+    priv->go_forward_item = GTK_WIDGET (gtk_tool_button_new (NULL, NULL));
+    gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (priv->go_forward_item), "go-next");
     gtk_toolbar_insert (GTK_TOOLBAR (priv->toolbar), GTK_TOOL_ITEM (priv->go_forward_item), -1);
     gtk_widget_set_sensitive (priv->go_forward_item, FALSE);
 
