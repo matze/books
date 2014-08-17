@@ -1,7 +1,7 @@
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
 
 AM_CPPFLAGS = 						\
-		-Wall -Werror 				\
+		-Wall         				\
 		$(BOOKS_CFLAGS) 			\
 		-DDATADIR=\""$(datadir)"\"
 
